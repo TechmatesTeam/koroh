@@ -29,16 +29,16 @@
     - Validate JWT token generation and verification
     - _Requirements: 7.4_
 
-- [ ] 3. Create user profile and CV management system
+- [x] 3. Create user profile and CV management system
 
-  - [ ] 3.1 Implement Profile model and API endpoints
+  - [x] 3.1 Implement Profile model and API endpoints
 
     - Create Profile model with user relationship and profile fields
     - Implement profile CRUD API endpoints with proper validation
     - Add file upload handling for profile pictures
     - _Requirements: 1.3, 7.3_
 
-  - [ ] 3.2 Build CV upload and storage system
+  - [x] 3.2 Build CV upload and storage system
 
     - Implement secure file upload for PDF, DOC, and MD formats
     - Create file validation and storage management
