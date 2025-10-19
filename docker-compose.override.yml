@@ -1,0 +1,37 @@
+version: '3.8'
+
+# Development overrides for docker-compose.yml
+services:
+  api:
+    volumes:
+      - ./api:/app
+    environment:
+      - DJANGO_DEBUG=True
+    command: >
+      sh -c "pip install -r requirements.txt &&
+             python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  web:
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    command: >
+      sh -c "npm install &&
+             npm run dev"
+
+  celery_worker:
+    volumes:
+      - ./api:/app
+    command: >
+      sh -c "pip install -r requirements.txt &&
+             celery -A koroh worker --loglevel=info --reload"
+
+  celery_beat:
+    volumes:
+      - ./api:/app
+    command: >
+      sh -c "pip install -r requirements.txt &&
+             celery -A koroh beat --loglevel=info"
