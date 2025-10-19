@@ -1,6 +1,27 @@
 # Koroh Platform
 
-An AI-powered professional networking platform built with Django, Next.js, and AWS Bedrock.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub issues](https://img.shields.io/github/issues/TechmatesTeam/koroh)](https://github.com/TechmatesTeam/koroh/issues)
+[![GitHub stars](https://img.shields.io/github/stars/TechmatesTeam/koroh)](https://github.com/TechmatesTeam/koroh/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/TechmatesTeam/koroh)](https://github.com/TechmatesTeam/koroh/network)
+
+An AI-powered professional networking platform that helps users build meaningful professional connections through intelligent matching and personalized recommendations. Built with Django, Next.js, and AWS Bedrock.
+
+## 🌟 Features
+
+- **AI-Powered Matching**: Intelligent connection recommendations using AWS Bedrock
+- **Professional Profiles**: Comprehensive user profiles with skills, experience, and goals
+- **Smart Networking**: Personalized networking suggestions and introductions
+- **Real-time Messaging**: Secure communication between professionals
+- **Event Management**: Professional events and networking opportunities
+- **Analytics Dashboard**: Insights into networking activities and connections
+
+## 🏗️ Project Information
+
+- **Repository**: [https://github.com/TechmatesTeam/koroh](https://github.com/TechmatesTeam/koroh)
+- **Organization**: [Techmates Team](https://github.com/TechmatesTeam)
+- **Project Lead**: Emmanuel Odero ([@Emmanuel-Odero](https://github.com/Emmanuel-Odero))
+- **Contact**: emmanuelodero@techmates.team
 
 ## Architecture
 
@@ -145,9 +166,54 @@ koroh-platform/
 3. Configure AWS Bedrock integration (Task 4)
 4. Implement core features (Tasks 3, 5, 6)
 
-## Contributing
+## 🤝 Contributing
 
-1. Follow the task-based development approach outlined in the specs
-2. Use the provided Docker environment for development
-3. Run tests before submitting changes
-4. Follow the established code structure and patterns
+We welcome contributions from the community! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+
+- Development setup and workflow
+- Code style and standards
+- Pull request process
+- Issue reporting
+
+### Quick Start for Contributors
+
+1. Fork the repository
+2. Clone your fork i.e: `git clone https://github.com/TechmatesTeam/koroh`
+3. Set up development environment: `make dev`
+4. Create a feature branch: `git checkout -b feature/your-feature`
+5. Make your changes and add tests
+6. Submit a pull request
+
+See our [Contributors Guide](CONTRIBUTORS.md) for more information.
+
+## 📋 Documentation
+
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Contributors](CONTRIBUTORS.md)
+- [License](LICENSE)
+
+## 🔒 Security
+
+Security is a top priority for Koroh. If you discover a security vulnerability, please follow our [Security Policy](SECURITY.md) and report it responsibly to emmanuelodero@techmates.team.
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/TechmatesTeam/koroh/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/TechmatesTeam/koroh/discussions)
+- **Email**: emmanuelodero@techmates.team
+
+## 🙏 Acknowledgments
+
+- All [contributors](CONTRIBUTORS.md) who have helped build Koroh
+- The open-source community for the amazing tools and libraries
+- AWS for providing the Bedrock AI services
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Made with ❤️ by [Techmates Team](https://github.com/TechmatesTeam)**
