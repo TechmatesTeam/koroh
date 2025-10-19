@@ -20,7 +20,7 @@ urlpatterns = [
         path('auth/', include('authentication.urls')),
         
         # Core app endpoints will be added here as we create them
-        # path('profiles/', include('profiles.urls')),
+        path('profiles/', include('profiles.urls')),
         # path('jobs/', include('jobs.urls')),
         # path('companies/', include('companies.urls')),
         # path('groups/', include('groups.urls')),
