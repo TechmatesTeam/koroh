@@ -56,11 +56,15 @@ THIRD_PARTY_APPS = [
     'django_celery_beat',
     'django_celery_results',
     'django_extensions',
+    'django_filters',
 ]
 
 LOCAL_APPS = [
     'authentication',
     'profiles',
+    'companies',
+    'jobs',
+    'peer_groups',
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
@@ -221,6 +225,14 @@ AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default='')
 AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default='')
 AWS_DEFAULT_REGION = env('AWS_DEFAULT_REGION', default='us-east-1')
 AWS_BEDROCK_REGION = env('AWS_BEDROCK_REGION', default='us-east-1')
+
+# AWS Bedrock Specific Configuration
+AWS_BEDROCK_DEFAULT_MODEL = env('AWS_BEDROCK_DEFAULT_MODEL', default='anthropic.claude-3-sonnet-20240229-v1:0')
+AWS_BEDROCK_TIMEOUT = env('AWS_BEDROCK_TIMEOUT', default=30)
+AWS_BEDROCK_MAX_RETRIES = env('AWS_BEDROCK_MAX_RETRIES', default=3)
+AWS_BEDROCK_RETRY_DELAY = env('AWS_BEDROCK_RETRY_DELAY', default=1.0)
+AWS_BEDROCK_ENABLE_LOGGING = env('AWS_BEDROCK_ENABLE_LOGGING', default=True)
+AWS_BEDROCK_LOG_LEVEL = env('AWS_BEDROCK_LOG_LEVEL', default='INFO')
 
 # MeiliSearch Configuration
 MEILISEARCH_URL = env('MEILISEARCH_URL', default='http://localhost:7700')

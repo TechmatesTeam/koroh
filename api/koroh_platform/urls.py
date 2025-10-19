@@ -19,11 +19,11 @@ urlpatterns = [
         # Authentication endpoints
         path('auth/', include('authentication.urls')),
         
-        # Core app endpoints will be added here as we create them
+        # Core app endpoints
         path('profiles/', include('profiles.urls')),
-        # path('jobs/', include('jobs.urls')),
-        # path('companies/', include('companies.urls')),
-        # path('groups/', include('groups.urls')),
+        path('jobs/', include('jobs.urls')),
+        path('companies/', include('companies.urls')),
+        path('', include('peer_groups.urls')),
         # path('ai/', include('ai_services.urls')),
     ])),
     

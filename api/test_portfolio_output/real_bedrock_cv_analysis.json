@@ -1,0 +1,211 @@
+{
+  "metadata": {
+    "model": "qwen.qwen3-32b-v1:0",
+    "timestamp": "2025-10-19T15:18:09.220467",
+    "cv_length": 3870,
+    "response_length": 7257,
+    "quality_score": 1.0
+  },
+  "analysis_result": {
+    "personal_info": {
+      "name": "SARAH JOHNSON",
+      "email": "sarah.johnson@email.com",
+      "phone": "+1-555-987-6543",
+      "location": "Seattle, WA",
+      "linkedin": "linkedin.com/in/sarahjohnson",
+      "github": "github.com/sarahjohnson"
+    },
+    "professional_summary": "Results-driven Product Manager with 5+ years of experience leading cross-functional teams to deliver innovative cloud solutions. Proven track record of increasing user engagement by 45% and driving product growth through data-driven decision making. Expert in agile methodologies, user research, and strategic product planning.",
+    "technical_skills": [
+      "Product Management",
+      "Data Analysis",
+      "Agile/Scrum",
+      "Python",
+      "SQL",
+      "Tableau",
+      "Azure",
+      "AWS",
+      "JavaScript",
+      "React",
+      "Node.js",
+      "Docker",
+      "Kubernetes",
+      "Git",
+      "JIRA",
+      "Confluence"
+    ],
+    "soft_skills": [
+      "Leadership",
+      "Communication",
+      "Strategic Thinking",
+      "Problem Solving",
+      "Team Management",
+      "Cross-functional Collaboration",
+      "User Experience Design",
+      "Stakeholder Management"
+    ],
+    "work_experience": [
+      {
+        "company": "Microsoft Corporation",
+        "position": "Senior Product Manager",
+        "start_date": "Jan 2021",
+        "end_date": "Present",
+        "duration": "3 years",
+        "description": "Led product strategy and development for cloud-based solutions serving 2M+ users",
+        "achievements": [
+          "Increased user engagement by 45% through data-driven product improvements and A/B testing",
+          "Led cross-functional team of 12 engineers, designers, and data scientists",
+          "Launched 3 major product features that generated $5M in additional revenue",
+          "Implemented agile development processes reducing time-to-market by 30%",
+          "Collaborated with sales and marketing teams to develop go-to-market strategies"
+        ],
+        "technologies": [
+          "Agile/Scrum",
+          "Cloud-based solutions",
+          "A/B Testing",
+          "Product Analytics"
+        ]
+      },
+      {
+        "company": "Amazon Web Services",
+        "position": "Product Manager",
+        "start_date": "Jun 2018",
+        "end_date": "Dec 2020",
+        "duration": "2 years 6 months",
+        "description": "Managed product roadmap for AWS developer tools with $10M annual revenue",
+        "achievements": [
+          "Delivered 15+ product releases on schedule with 99.9% uptime",
+          "Reduced customer churn by 30% through improved user experience and feature development",
+          "Conducted user research with 500+ customers to inform product decisions",
+          "Worked closely with engineering teams to prioritize features and resolve technical challenges"
+        ],
+        "technologies": [
+          "AWS",
+          "Product Roadmap",
+          "User Research"
+        ]
+      },
+      {
+        "company": "Startup Inc.",
+        "position": "Associate Product Manager",
+        "start_date": "Jan 2017",
+        "end_date": "May 2018",
+        "duration": "1 year 4 months",
+        "description": "Supported product development for early-stage fintech startup",
+        "achievements": [
+          "Helped grow user base from 1,000 to 50,000 active users",
+          "Conducted market research and competitive analysis",
+          "Assisted in raising $2M Series A funding through product demonstrations"
+        ],
+        "technologies": [
+          "Market Research",
+          "Fintech Product Development"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "institution": "Stanford University",
+        "degree": "Master of Business Administration",
+        "field_of_study": "Technology Management",
+        "start_date": "2015",
+        "end_date": "2017",
+        "gpa": "3.9/4.0",
+        "honors": [
+          "Relevant Coursework: Product Strategy, Data Analytics, Leadership, Innovation Management",
+          "Capstone Project: AI-Driven Product Recommendation Systems"
+        ]
+      },
+      {
+        "institution": "University of Washington",
+        "degree": "Bachelor of Science in Computer Science",
+        "field_of_study": "Computer Science",
+        "start_date": "2011",
+        "end_date": "2015",
+        "gpa": "3.7/4.0",
+        "honors": [
+          "Magna Cum Laude",
+          "Relevant Coursework: Software Engineering, Database Systems, Human-Computer Interaction",
+          "Senior Project: Mobile App for Campus Navigation (iOS/Android)"
+        ]
+      }
+    ],
+    "certifications": [
+      {
+        "name": "Certified Product Manager",
+        "issuer": "Product Management Institute",
+        "issue_date": "2020",
+        "expiry_date": "2025"
+      },
+      {
+        "name": "AWS Solutions Architect Associate",
+        "issuer": "Amazon Web Services",
+        "issue_date": "2019",
+        "expiry_date": "2024"
+      },
+      {
+        "name": "Certified ScrumMaster",
+        "issuer": "Scrum Alliance",
+        "issue_date": "2018",
+        "expiry_date": "2023"
+      },
+      {
+        "name": "Google Analytics Certified",
+        "issuer": "Google",
+        "issue_date": "2021",
+        "expiry_date": "2023"
+      }
+    ],
+    "projects": [
+      {
+        "name": "Cloud Analytics Dashboard",
+        "description": "Built real-time analytics dashboard for cloud resource monitoring using React and Python",
+        "technologies": [
+          "React",
+          "Python",
+          "AWS CloudWatch",
+          "Custom APIs"
+        ],
+        "date": "2023"
+      },
+      {
+        "name": "Product Metrics Platform",
+        "description": "Developed internal platform for tracking product KPIs and user behavior",
+        "technologies": [
+          "Node.js",
+          "PostgreSQL",
+          "Docker",
+          "Grafana"
+        ],
+        "date": "2022"
+      }
+    ],
+    "languages": [
+      {
+        "language": "English",
+        "proficiency": "Native"
+      },
+      {
+        "language": "Spanish",
+        "proficiency": "Intermediate (conversational)"
+      },
+      {
+        "language": "Mandarin",
+        "proficiency": "Basic"
+      }
+    ],
+    "awards": [
+      "Employee of the Year - Microsoft Corporation (2023)",
+      "Innovation Award - Amazon Web Services (2019)",
+      "Dean's List - University of Washington (2013, 2014, 2015)"
+    ],
+    "interests": [
+      "Machine Learning",
+      "Data Visualization",
+      "Hiking",
+      "Photography",
+      "Mentoring",
+      "Tech Meetups"
+    ]
+  }
+}

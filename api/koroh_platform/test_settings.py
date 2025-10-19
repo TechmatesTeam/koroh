@@ -1,8 +1,7 @@
 """
 Test settings for Koroh platform.
 
-This configuration uses SQLite for testing to avoid requiring
-PostgreSQL during development and testing.
+This configuration uses SQLite for testing to avoid database dependencies.
 """
 
 from .settings import *
@@ -15,7 +14,7 @@ DATABASES = {
     }
 }
 
-# Disable migrations for faster tests
+# Disable migrations for faster testing
 class DisableMigrations:
     def __contains__(self, item):
         return True
@@ -25,10 +24,19 @@ class DisableMigrations:
 
 MIGRATION_MODULES = DisableMigrations()
 
-# Use simple password hasher for faster tests
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.MD5PasswordHasher',
-]
+# Disable cache for testing
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    }
+}
+
+# Use console email backend for testing
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Disable Celery for testing
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Disable logging during tests
 LOGGING = {
@@ -44,12 +52,7 @@ LOGGING = {
     },
 }
 
-# Disable cache during tests
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-    }
-}
-
-# Use console email backend for tests
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Speed up password hashing for tests
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.MD5PasswordHasher',
+]

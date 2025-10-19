@@ -309,6 +309,14 @@ class CVStorageService:
         Returns:
             Sanitized filename
         """
+        if not filename:
+            return f'cv_{timezone.now().strftime("%Y%m%d_%H%M%S")}'
+        
+        # Remove path traversal attempts
+        filename = filename.replace('..', '')
+        filename = filename.replace('/', '')
+        filename = filename.replace('\\', '')
+        
         # Remove or replace unsafe characters
         safe_chars = '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
         safe_filename = ''.join(c for c in filename if c in safe_chars)

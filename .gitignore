@@ -88,3 +88,10 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Storage directory (user data)
+storage/
+# Keep storage structure documentation
+!storage/.gitkeep
+!docs/storage_structure.md
+/api/comprehensive_cv_analysis/*

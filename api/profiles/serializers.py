@@ -263,7 +263,11 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             'experience_level', 'skills', 'skills_display', 'portfolio_url',
             'created_at', 'updated_at'
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id', 'user', 'headline', 'summary', 'location', 'industry',
+            'experience_level', 'skills', 'skills_display', 'portfolio_url',
+            'created_at', 'updated_at'
+        ]
     
     def to_representation(self, instance):
         """Customize representation based on privacy settings."""

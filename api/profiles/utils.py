@@ -6,12 +6,18 @@ validation, and security operations.
 """
 
 import os
-import magic
 import hashlib
 from typing import List, Dict, Any, Optional
 from django.core.files.uploadedfile import UploadedFile
 from django.conf import settings
 from django.utils import timezone
+
+# Try to import python-magic, but handle gracefully if not available
+try:
+    import magic
+    HAS_MAGIC = True
+except ImportError:
+    HAS_MAGIC = False
 
 
 def get_file_type(file_path: str) -> Optional[str]:
@@ -27,6 +33,9 @@ def get_file_type(file_path: str) -> Optional[str]:
     Returns:
         MIME type string or None if detection fails
     """
+    if not HAS_MAGIC:
+        return None
+        
     try:
         return magic.from_file(file_path, mime=True)
     except Exception:
@@ -80,6 +89,11 @@ def sanitize_filename(filename: str) -> str:
     """
     if not filename:
         return f'file_{timezone.now().strftime("%Y%m%d_%H%M%S")}'
+    
+    # Remove path traversal attempts
+    filename = filename.replace('..', '')
+    filename = filename.replace('/', '')
+    filename = filename.replace('\\', '')
     
     # Keep only safe characters
     safe_chars = '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'

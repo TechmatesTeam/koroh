@@ -45,56 +45,56 @@
     - Add CV metadata extraction and storage
     - _Requirements: 1.1, 1.3_
 
-  - [ ]\* 3.3 Create profile management tests
+  - [x] 3.3 Create profile management tests
     - Test profile creation, updates, and file upload functionality
     - Validate file format restrictions and security measures
     - _Requirements: 1.1, 1.3_
 
-- [ ] 4. Integrate AWS Bedrock AI services
+- [x] 4. Integrate AWS Bedrock AI services
 
-  - [ ] 4.1 Set up AWS Bedrock client and configuration
+  - [x] 4.1 Set up AWS Bedrock client and configuration
 
     - Configure AWS SDK with proper IAM roles and permissions
     - Implement Bedrock client wrapper with error handling
     - Create AI service base classes for different model types
     - _Requirements: 6.1, 6.3_
 
-  - [ ] 4.2 Implement CV analysis AI agent
+  - [x] 4.2 Implement CV analysis AI agent
 
     - Create CV parser service using AWS Bedrock for text extraction
     - Implement skills, experience, and education data extraction
     - Build structured data output from unstructured CV content
     - _Requirements: 1.1, 6.2_
 
-  - [ ] 4.3 Build portfolio generation AI agent
+  - [x] 4.3 Build portfolio generation AI agent
 
     - Implement AI-powered portfolio content generation
     - Create multiple portfolio template options
     - Generate professional summaries and skill presentations
     - _Requirements: 1.2, 1.4, 6.2_
 
-  - [ ]\* 4.4 Create AI service integration tests
-    - Mock AWS Bedrock responses for testing AI workflows
-    - Test CV analysis accuracy and portfolio generation quality
+  - [x] 4.4 Create AI service integration tests
+    - Real AWS Bedrock responses for checking AI workflows
+    - Test CV analysis accuracy and portfolio generation quality by extracting text from a pdf cv build a html/css javascript portfolio(on it's own folder ignored in git but can be rendered for preview once once fronted is done for test use localhost)
     - _Requirements: 1.1, 1.2, 6.3_
 
-- [ ] 5. Develop job and company management system
+- [x] 5. Develop job and company management system
 
-  - [ ] 5.1 Create Job and Company models with relationships
+  - [x] 5.1 Create Job and Company models with relationships
 
     - Implement Job model with company relationship and job details
     - Create Company model with profile information and social features
     - Add database indexes for search optimization
     - _Requirements: 2.1, 2.2_
 
-  - [ ] 5.2 Build job search and recommendation engine
+  - [x] 5.2 Build job search and recommendation engine
 
     - Implement job search API with filtering and pagination
     - Create AI-powered job recommendation system using user profiles
     - Integrate with AWS Bedrock for intelligent job matching
     - _Requirements: 2.1, 2.4_
 
-  - [ ] 5.3 Implement company tracking and insights
+  - [x] 5.3 Implement company tracking and insights
 
     - Create company follow/unfollow functionality
     - Build company insights and analytics features
@@ -106,23 +106,23 @@
     - Validate company tracking and notification systems
     - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 6. Create peer group networking system
+- [x] 6. Create peer group networking system
 
-  - [ ] 6.1 Implement PeerGroup model and membership system
+  - [x] 6.1 Implement PeerGroup model and membership system
 
     - Create PeerGroup model with membership relationships
     - Implement group creation, joining, and management APIs
     - Add group privacy and access control features
     - _Requirements: 3.1, 3.2_
 
-  - [ ] 6.2 Build AI-powered peer group recommendations
+  - [x] 6.2 Build AI-powered peer group recommendations
 
     - Implement peer group suggestion algorithm using AWS Bedrock
     - Create matching logic based on skills, industry, and experience
     - Build group discovery and recommendation APIs
     - _Requirements: 3.1, 3.4_
 
-  - [ ] 6.3 Add group communication features
+  - [x] 6.3 Add group communication features
 
     - Implement basic messaging system for peer groups
     - Create discussion threads and group activity feeds
@@ -134,7 +134,7 @@
     - Validate communication features and notifications
     - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 7. Set up Celery task queue and background processing
+- [-] 7. Set up Celery task queue and background processing
 
   - [ ] 7.1 Configure Celery workers and beat scheduler
 
