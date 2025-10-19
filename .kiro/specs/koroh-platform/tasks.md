@@ -24,7 +24,7 @@
     - Create user registration and login API endpoints
     - _Requirements: 7.4_
 
-  - [ ]\* 2.3 Write authentication unit tests
+  - [x] 2.3 Run application the "make dev" command to ensure app is running, Write authentication unit tests
     - Test user registration, login, and token refresh functionality
     - Validate JWT token generation and verification
     - _Requirements: 7.4_
