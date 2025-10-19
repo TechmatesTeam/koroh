@@ -19,14 +19,14 @@ help:
 
 # Build all images
 build:
-	docker-compose build
+	docker compose build
 
 # Start development environment
 dev: up
 
 # Start all services
 up:
-	docker-compose up -d
+	docker compose up -d
 	@echo "Services started. Access:"
 	@echo "  Frontend: http://localhost:3000"
 	@echo "  API: http://localhost:8000"
@@ -37,46 +37,46 @@ up:
 
 # Stop all services
 down:
-	docker-compose down
+	docker compose down
 
 # Restart all services
 restart:
-	docker-compose restart
+	docker compose restart
 
 # Show logs
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 # Start production environment
 prod:
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Clean up everything
 clean:
-	docker-compose down -v --rmi all --remove-orphans
+	docker compose down -v --rmi all --remove-orphans
 	docker system prune -f
 
 # Django shell
 api-shell:
-	docker-compose exec api python manage.py shell
+	docker compose exec api python manage.py shell
 
 # Database shell
 db-shell:
-	docker-compose exec postgres psql -U koroh_user -d koroh_db
+	docker compose exec postgres psql -U koroh_user -d koroh_db
 
 # Run tests
 test:
-	docker-compose exec api python manage.py test
-	docker-compose exec web npm test
+	docker compose exec api python manage.py test
+	docker compose exec web npm test
 
 # Database migrations
 migrate:
-	docker-compose exec api python manage.py migrate
+	docker compose exec api python manage.py migrate
 
 # Create superuser
 createsuperuser:
-	docker-compose exec api python manage.py createsuperuser
+	docker compose exec api python manage.py createsuperuser
 
 # Collect static files
 collectstatic:
-	docker-compose exec api python manage.py collectstatic --noinput
+	docker compose exec api python manage.py collectstatic --noinput
