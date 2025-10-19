@@ -1,0 +1,45 @@
+version: '3.8'
+
+# Production overrides for docker-compose.yml
+services:
+  api:
+    environment:
+      - DJANGO_DEBUG=False
+      - DJANGO_ALLOWED_HOSTS=your-domain.com,www.your-domain.com
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn koroh.wsgi:application --bind 0.0.0.0:8000 --workers 4"
+    restart: unless-stopped
+
+  web:
+    command: >
+      sh -c "npm run build &&
+             npm start"
+    restart: unless-stopped
+
+  celery_worker:
+    command: celery -A koroh worker --loglevel=warning --concurrency=4
+    restart: unless-stopped
+
+  celery_beat:
+    command: celery -A koroh beat --loglevel=warning
+    restart: unless-stopped
+
+  nginx:
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+  meilisearch:
+    restart: unless-stopped
+
+  prometheus:
+    restart: unless-stopped
+
+  grafana:
+    restart: unless-stopped
