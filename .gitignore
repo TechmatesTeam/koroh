@@ -3,6 +3,7 @@
 .env.local
 .env.production
 .env.staging
+!.env.example
 
 # Docker
 docker-compose.override.local.yml
