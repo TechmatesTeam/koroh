@@ -116,35 +116,27 @@ class PeerGroupViewSet(ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def discover(self, request):
-        """Discover groups based on user profile and preferences using AI."""
+        """Discover groups based on user profile and preferences."""
         user = request.user
-        if not user.is_authenticated:
-            return Response(
-                {'error': 'Authentication required for personalized discovery.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
         
-        from .services import PeerGroupRecommendationService
+        # Allow unauthenticated users to discover public groups
+        if not user.is_authenticated:
+            queryset = self.get_queryset().filter(
+                is_active=True,
+                privacy_level='public'
+            ).annotate(
+                member_count=Count('members', filter=Q(groupmembership__status='active'))
+            ).order_by('-member_count', '-created_at')[:10]
+            
+            serializer = PeerGroupListSerializer(queryset, many=True, context={'request': request})
+            return Response({
+                'recommendations': [{'group': group} for group in serializer.data],
+                'total': len(serializer.data),
+                'ai_powered': False
+            })
         
         try:
-            # Get AI-powered recommendations
-            recommendation_service = PeerGroupRecommendationService()
-            recommendations = recommendation_service.get_recommendations_for_user(
-                user=user,
-                limit=int(request.query_params.get('limit', 10)),
-                exclude_joined=request.query_params.get('exclude_joined', 'true').lower() == 'true'
-            )
-            
-            return Response({
-                'recommendations': recommendations,
-                'total': len(recommendations),
-                'ai_powered': True
-            })
-            
-        except Exception as e:
-            logger.error(f"Error in AI discovery for user {user.id}: {e}")
-            
-            # Fallback to simple discovery
+            # Simple discovery based on user profile
             profile = getattr(user, 'profile', None)
             user_skills = profile.skills if profile and profile.skills else []
             user_industry = profile.industry if profile else None
@@ -152,25 +144,43 @@ class PeerGroupViewSet(ModelViewSet):
             # Build discovery query
             queryset = self.get_queryset().filter(is_active=True)
             
-            # Filter by user's industry and skills
-            if user_industry:
-                queryset = queryset.filter(
-                    Q(industry__icontains=user_industry) |
-                    Q(skills__overlap=user_skills) if user_skills else Q()
-                )
+            # Filter by user's industry and skills if available
+            if user_industry or user_skills:
+                filters = Q()
+                if user_industry:
+                    filters |= Q(industry__icontains=user_industry)
+                if user_skills:
+                    filters |= Q(skills__overlap=user_skills)
+                queryset = queryset.filter(filters)
             
             # Exclude groups user is already a member of
-            user_groups = user.peer_groups.values_list('id', flat=True)
-            queryset = queryset.exclude(id__in=user_groups)
+            if hasattr(user, 'peer_groups'):
+                user_groups = user.peer_groups.values_list('id', flat=True)
+                queryset = queryset.exclude(id__in=user_groups)
             
             # Order by activity score and member count
-            queryset = queryset.order_by('-activity_score', '-member_count')[:20]
+            queryset = queryset.annotate(
+                member_count=Count('members', filter=Q(groupmembership__status='active'))
+            ).order_by('-activity_score', '-member_count')[:20]
             
             serializer = PeerGroupListSerializer(queryset, many=True, context={'request': request})
             return Response({
                 'recommendations': [{'group': group} for group in serializer.data],
                 'total': len(serializer.data),
                 'ai_powered': False
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in discovery for user {user.id if user.is_authenticated else 'anonymous'}: {e}")
+            
+            # Fallback to basic groups
+            queryset = self.get_queryset().filter(is_active=True)[:10]
+            serializer = PeerGroupListSerializer(queryset, many=True, context={'request': request})
+            return Response({
+                'recommendations': [{'group': group} for group in serializer.data],
+                'total': len(serializer.data),
+                'ai_powered': False,
+                'fallback': True
             })
     
     @action(detail=False, methods=['get'])
@@ -463,23 +473,50 @@ class PeerGroupViewSet(ModelViewSet):
     @action(detail=False, methods=['get'])
     def trending(self, request):
         """Get trending/popular groups."""
-        from .services import GroupMatchingService
-        
-        user = request.user
-        if not user.is_authenticated:
-            return Response(
-                {'error': 'Authentication required.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
-        matching_service = GroupMatchingService()
-        trending_groups = matching_service.get_trending_groups(
-            user=user,
-            limit=int(request.query_params.get('limit', 10))
-        )
-        
-        serializer = PeerGroupListSerializer(trending_groups, many=True, context={'request': request})
-        return Response(serializer.data)
+        try:
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            # Allow unauthenticated users to see trending groups
+            limit = int(request.query_params.get('limit', 10))
+            
+            # Groups with recent activity (last 7 days)
+            recent_date = timezone.now() - timedelta(days=7)
+            
+            trending_groups = self.get_queryset().filter(
+                is_active=True,
+                last_activity__gte=recent_date
+            ).annotate(
+                recent_members=Count(
+                    'members',
+                    filter=Q(
+                        groupmembership__status='active',
+                        groupmembership__joined_at__gte=recent_date
+                    )
+                ),
+                total_members=Count(
+                    'members',
+                    filter=Q(groupmembership__status='active')
+                )
+            ).filter(
+                total_members__gt=0  # Only groups with members
+            ).order_by('-recent_members', '-activity_score', '-total_members')[:limit]
+            
+            serializer = PeerGroupListSerializer(trending_groups, many=True, context={'request': request})
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"Error getting trending groups: {e}")
+            
+            # Fallback to most popular groups
+            trending_groups = self.get_queryset().filter(
+                is_active=True
+            ).annotate(
+                total_members=Count('members', filter=Q(groupmembership__status='active'))
+            ).order_by('-total_members', '-activity_score')[:limit]
+            
+            serializer = PeerGroupListSerializer(trending_groups, many=True, context={'request': request})
+            return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
     def similar(self, request, slug=None):
