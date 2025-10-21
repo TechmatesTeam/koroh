@@ -1,0 +1,47 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Your {{ site_name }} Account is Now Verified{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Congratulations {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p>Your {{ site_name }} account has been successfully verified. You now have full access to all our professional career platform features.</p>
+</div>
+
+<div style="text-align: center;">
+    <a href="{{ dashboard_url }}" class="cta-button">Go to Dashboard</a>
+</div>
+
+<div class="secondary-info">
+    <p><strong>What you can do now:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Upload Your CV:</strong> Let our AI analyze your experience and skills</li>
+        <li><strong>Generate Portfolios:</strong> Create professional portfolios automatically</li>
+        <li><strong>Discover Jobs:</strong> Find opportunities that match your profile</li>
+        <li><strong>Join Peer Groups:</strong> Connect with professionals in your field</li>
+        <li><strong>Get AI Insights:</strong> Receive personalized career recommendations</li>
+    </ul>
+</div>
+
+<div class="content">
+    <p><strong>Getting Started Tips:</strong></p>
+    <ol style="margin: 10px 0; padding-left: 20px;">
+        <li>Complete your profile with your professional information</li>
+        <li>Upload your CV to unlock AI-powered features</li>
+        <li>Explore job recommendations tailored to your skills</li>
+        <li>Join relevant peer groups to expand your network</li>
+    </ol>
+</div>
+
+<div class="content">
+    <p>If you have any questions or need assistance getting started, don't hesitate to reach out to our support team.</p>
+</div>
+
+<div class="content">
+    <p>We're excited to help you advance your career!</p>
+    <p><strong>The {{ site_name }} Team</strong></p>
+</div>
+{% endblock %}

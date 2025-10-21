@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    <style>
+        /* Reset styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: bold;
+            text-decoration: none;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .header-subtitle {
+            color: #e2e8f0;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .email-body {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #2d3748;
+            margin-bottom: 20px;
+        }
+        
+        .content {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 30px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: transform 0.2s ease;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .secondary-info {
+            background-color: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .secondary-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #718096;
+        }
+        
+        .email-footer {
+            background-color: #2d3748;
+            color: #a0aec0;
+            padding: 30px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .footer-links {
+            margin: 20px 0;
+        }
+        
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+        
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .social-links {
+            margin: 20px 0;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #a0aec0;
+            text-decoration: none;
+        }
+        
+        /* Responsive design */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            
+            .email-header,
+            .email-body,
+            .email-footer {
+                padding: 20px !important;
+            }
+            
+            .logo {
+                font-size: 28px;
+            }
+            
+            .cta-button {
+                display: block;
+                text-align: center;
+                margin: 20px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <a href="{{ site_url }}" class="logo">{{ site_name }}</a>
+            <p class="header-subtitle">Professional Career Platform</p>
+        </div>
+        
+        <!-- Body -->
+        <div class="email-body">
+            {% block content %}
+            {% endblock %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <div class="footer-links">
+                <a href="{{ site_url }}/about">About</a>
+                <a href="{{ site_url }}/privacy">Privacy</a>
+                <a href="{{ site_url }}/terms">Terms</a>
+                <a href="{{ site_url }}/contact">Contact</a>
+            </div>
+            
+            <p>
+                © {{ current_year }} {{ company_name }}. All rights reserved.<br>
+                Need help? Contact us at <a href="mailto:{{ support_email }}" style="color: #667eea;">{{ support_email }}</a>
+            </p>
+            
+            <div class="social-links">
+                <a href="#">LinkedIn</a>
+                <a href="#">Twitter</a>
+                <a href="#">GitHub</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
