@@ -1,0 +1,328 @@
+{
+    "dashboard": {
+        "id": null,
+        "title": "Koroh User Activity",
+        "tags": [
+            "koroh",
+            "users",
+            "activity"
+        ],
+        "style": "dark",
+        "timezone": "browser",
+        "editable": true,
+        "panels": [
+            {
+                "id": 1,
+                "title": "User Engagement",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            {
+                "id": 2,
+                "title": "Active Users",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "koroh_active_users",
+                        "legendFormat": "Active Users"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "green",
+                                    "value": null
+                                },
+                                {
+                                    "color": "yellow",
+                                    "value": 100
+                                },
+                                {
+                                    "color": "red",
+                                    "value": 1000
+                                }
+                            ]
+                        }
+                    }
+                },
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 0,
+                    "y": 1
+                }
+            },
+            {
+                "id": 3,
+                "title": "User Registrations",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "increase(koroh_user_registrations_total[24h])",
+                        "legendFormat": "New Users (24h)"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "palette-classic"
+                        }
+                    }
+                },
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 6,
+                    "y": 1
+                }
+            },
+            {
+                "id": 4,
+                "title": "Page Views by Page",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_page_views_total[5m])",
+                        "legendFormat": "{{page}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "views/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 1
+                }
+            },
+            {
+                "id": 5,
+                "title": "Feature Usage",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 9
+                }
+            },
+            {
+                "id": 6,
+                "title": "CV Uploads",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_cv_uploads_total[5m])",
+                        "legendFormat": "{{file_type}} - {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "uploads/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 0,
+                    "y": 10
+                }
+            },
+            {
+                "id": 7,
+                "title": "Portfolio Generations",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_portfolio_generations_total[5m])",
+                        "legendFormat": "{{template_type}} - {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "generations/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 8,
+                    "y": 10
+                }
+            },
+            {
+                "id": 8,
+                "title": "Job Searches",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_job_searches_total[5m])",
+                        "legendFormat": "{{search_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "searches/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 16,
+                    "y": 10
+                }
+            },
+            {
+                "id": 9,
+                "title": "Peer Group Activity",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_peer_group_activities_total[5m])",
+                        "legendFormat": "{{activity_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "activities/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 18
+                }
+            },
+            {
+                "id": 10,
+                "title": "Feature Usage Distribution",
+                "type": "piechart",
+                "targets": [
+                    {
+                        "expr": "sum by (feature_name) (koroh_feature_usage_total)",
+                        "legendFormat": "{{feature_name}}"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 18
+                }
+            },
+            {
+                "id": 11,
+                "title": "User Interactions",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 26
+                }
+            },
+            {
+                "id": 12,
+                "title": "User Interactions by Type",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_user_interactions_total[5m])",
+                        "legendFormat": "{{interaction_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "interactions/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 27
+                }
+            },
+            {
+                "id": 13,
+                "title": "User Interactions by Component",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_user_interactions_total[5m])",
+                        "legendFormat": "{{component}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "interactions/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 27
+                }
+            },
+            {
+                "id": 14,
+                "title": "Error Tracking",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 35
+                }
+            },
+            {
+                "id": 15,
+                "title": "Client Errors",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_client_errors_total[5m])",
+                        "legendFormat": "{{error_type}} - {{component}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "errors/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 24,
+                    "x": 0,
+                    "y": 36
+                }
+            }
+        ],
+        "time": {
+            "from": "now-6h",
+            "to": "now"
+        },
+        "refresh": "1m",
+        "schemaVersion": 27,
+        "version": 1
+    }
+}
