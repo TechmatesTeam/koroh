@@ -20,6 +20,8 @@ from datetime import datetime
 
 from .ai_services import TextAnalysisService, AIServiceConfig, ModelType
 from .bedrock_config import get_model_for_task
+from .metrics import track_ai_request, track_user_activity
+from .logging import ai_services_logger, performance_logger
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +140,8 @@ class CVAnalysisService:
         self.text_service = TextAnalysisService(config)
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
+    @track_ai_request('cv_analysis')
+    @track_user_activity('cv_analysis')
     def analyze_cv(self, cv_text: str, analysis_options: Optional[Dict[str, Any]] = None) -> CVAnalysisResult:
         """
         Analyze CV text and extract structured information.
@@ -154,8 +158,18 @@ class CVAnalysisService:
         
         options = analysis_options or {}
         
+        start_time = datetime.now()
+        
         try:
             self.logger.info(f"Starting CV analysis for {len(cv_text)} character document")
+            
+            # Log AI service request start
+            ai_services_logger.log_ai_request(
+                service_type='cv_analysis',
+                model=self.text_service.config.model_type.value,
+                input_size=len(cv_text),
+                success=True
+            )
             
             # Step 1: Extract basic structured data
             structured_data = self._extract_structured_data(cv_text, options)
@@ -170,10 +184,30 @@ class CVAnalysisService:
             # Step 4: Validate and clean the results
             analysis_result = self._validate_and_clean_results(analysis_result)
             
+            # Log performance
+            duration = (datetime.now() - start_time).total_seconds()
+            performance_logger.log_ai_service_performance(
+                service_type='cv_analysis',
+                model=self.text_service.config.model_type.value,
+                duration=duration
+            )
+            
             self.logger.info("CV analysis completed successfully")
             return analysis_result
             
         except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds()
+            
+            # Log AI service error
+            ai_services_logger.log_ai_request(
+                service_type='cv_analysis',
+                model=self.text_service.config.model_type.value,
+                input_size=len(cv_text),
+                success=False,
+                duration=duration,
+                error_message=str(e)
+            )
+            
             self.logger.error(f"CV analysis failed: {e}")
             raise
     
