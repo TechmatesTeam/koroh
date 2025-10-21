@@ -98,11 +98,73 @@ services:
       - '--web.enable-lifecycle'
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus-alerts.yml:/etc/prometheus/prometheus-alerts.yml
       - prometheus_data:/prometheus
     ports:
       - "${PROMETHEUS_PORT}:9090"
     networks:
       - koroh_network
+
+  # Node Exporter (System Metrics)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: koroh_node_exporter
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    ports:
+      - "9100:9100"
+    networks:
+      - koroh_network
+    restart: unless-stopped
+
+  # Elasticsearch (Log Storage)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: koroh_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - koroh_network
+    restart: unless-stopped
+
+  # Logstash (Log Processing)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: koroh_logstash
+    volumes:
+      - ./monitoring/logstash/pipeline:/usr/share/logstash/pipeline
+      - ./monitoring/logstash/config:/usr/share/logstash/config
+      - ./api/logs:/var/log/koroh
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    networks:
+      - koroh_network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  # Kibana (Log Visualization)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: koroh_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - koroh_network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
 
   # Grafana (Monitoring Dashboards)
   grafana:
@@ -130,6 +192,11 @@ services:
       dockerfile: Dockerfile
     container_name: koroh_api
     environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - MEILISEARCH_URL=${MEILISEARCH_URL}
@@ -142,6 +209,9 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - AWS_BEDROCK_REGION=${AWS_BEDROCK_REGION}
+      - AWS_BEDROCK_MODEL_ID=${AWS_BEDROCK_MODEL_ID}
+      - AWS_BEDROCK_MAX_TOKENS=${AWS_BEDROCK_MAX_TOKENS}
+      - AWS_BEDROCK_TEMPERATURE=${AWS_BEDROCK_TEMPERATURE}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
       - EMAIL_USE_TLS=${EMAIL_USE_TLS}
@@ -175,6 +245,11 @@ services:
       dockerfile: Dockerfile
     container_name: koroh_celery_worker
     environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - MEILISEARCH_URL=${MEILISEARCH_URL}
@@ -184,17 +259,37 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - AWS_BEDROCK_REGION=${AWS_BEDROCK_REGION}
+      - AWS_BEDROCK_MODEL_ID=${AWS_BEDROCK_MODEL_ID}
+      - AWS_BEDROCK_MAX_TOKENS=${AWS_BEDROCK_MAX_TOKENS}
+      - AWS_BEDROCK_TEMPERATURE=${AWS_BEDROCK_TEMPERATURE}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
     volumes:
       - ./api:/app
       - media_files:/app/media
     networks:
       - koroh_network
     depends_on:
-      - redis
-      - postgres
-    command: celery -A koroh worker --loglevel=info
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "koroh_platform", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "python manage.py migrate &&
+             celery -A koroh_platform worker 
+             --loglevel=info 
+             --concurrency=4 
+             --max-tasks-per-child=1000 
+             --time-limit=300 
+             --soft-time-limit=240"
 
   # Celery Beat Scheduler
   celery_beat:
@@ -203,6 +298,11 @@ services:
       dockerfile: Dockerfile
     container_name: koroh_celery_beat
     environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
@@ -210,23 +310,58 @@ services:
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
     volumes:
       - ./api:/app
+      - celery_beat_data:/app/celerybeat-schedule
+    networks:
+      - koroh_network
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "celery_status", "--health", "--json"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "python manage.py migrate &&
+             celery -A koroh_platform beat 
+             --loglevel=info 
+             --scheduler=django_celery_beat.schedulers:DatabaseScheduler"
+
+  # Celery Flower (Monitoring)
+  celery_flower:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: koroh_celery_flower
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - FLOWER_BASIC_AUTH=${FLOWER_BASIC_AUTH:-admin:admin}
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
     networks:
       - koroh_network
     depends_on:
       - redis
-      - postgres
-    command: celery -A koroh beat --loglevel=info
+      - celery_worker
+    restart: unless-stopped
+    command: celery -A koroh_platform flower --port=5555
 
   # Next.js Frontend
   web:
     build:
       context: ./web
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: koroh_web
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_USE_MOCK_API=${NEXT_PUBLIC_USE_MOCK_API}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NODE_ENV=development
     volumes:
       - ./web:/app
       - /app/node_modules
@@ -235,8 +370,6 @@ services:
       - "${WEB_PORT}:3000"
     networks:
       - koroh_network
-    depends_on:
-      - api
     command: npm run dev
 
   # Nginx Reverse Proxy
@@ -264,8 +397,10 @@ volumes:
   pgadmin_data:
   prometheus_data:
   grafana_data:
+  elasticsearch_data:
   media_files:
   static_files:
+  celery_beat_data:
 
 networks:
   koroh_network:
