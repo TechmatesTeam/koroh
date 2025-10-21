@@ -4,77 +4,464 @@
         "title": "Koroh Platform Overview",
         "tags": [
             "koroh",
-            "platform"
+            "platform",
+            "monitoring"
         ],
         "style": "dark",
         "timezone": "browser",
+        "editable": true,
+        "graphTooltip": 0,
         "panels": [
             {
                 "id": 1,
-                "title": "API Response Time",
-                "type": "graph",
-                "targets": [
-                    {
-                        "expr": "histogram_quantile(0.95, rate(django_request_duration_seconds_bucket[5m]))",
-                        "legendFormat": "95th percentile"
-                    }
-                ],
+                "title": "System Overview",
+                "type": "row",
+                "collapsed": false,
                 "gridPos": {
-                    "h": 8,
-                    "w": 12,
+                    "h": 1,
+                    "w": 24,
                     "x": 0,
                     "y": 0
                 }
             },
             {
                 "id": 2,
-                "title": "Database Connections",
-                "type": "graph",
+                "title": "Active Users",
+                "type": "stat",
                 "targets": [
                     {
-                        "expr": "pg_stat_database_numbackends",
-                        "legendFormat": "Active connections"
+                        "expr": "koroh_active_users",
+                        "legendFormat": "Active Users"
                     }
                 ],
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "green",
+                                    "value": null
+                                },
+                                {
+                                    "color": "yellow",
+                                    "value": 100
+                                },
+                                {
+                                    "color": "red",
+                                    "value": 1000
+                                }
+                            ]
+                        }
+                    }
+                },
                 "gridPos": {
                     "h": 8,
-                    "w": 12,
-                    "x": 12,
-                    "y": 0
+                    "w": 6,
+                    "x": 0,
+                    "y": 1
                 }
             },
             {
                 "id": 3,
-                "title": "Redis Memory Usage",
+                "title": "API Response Time (95th percentile)",
                 "type": "graph",
                 "targets": [
                     {
-                        "expr": "redis_memory_used_bytes",
-                        "legendFormat": "Memory used"
+                        "expr": "histogram_quantile(0.95, rate(django_request_duration_seconds_bucket[5m]))",
+                        "legendFormat": "Django API"
+                    },
+                    {
+                        "expr": "histogram_quantile(0.95, rate(koroh_web_api_request_duration_seconds_bucket[5m]))",
+                        "legendFormat": "Frontend API Calls"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "s"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 9,
+                    "x": 6,
+                    "y": 1
+                }
+            },
+            {
+                "id": 4,
+                "title": "Request Rate",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(django_http_requests_total[5m])",
+                        "legendFormat": "{{method}} {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "reqps"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 9,
+                    "x": 15,
+                    "y": 1
+                }
+            },
+            {
+                "id": 5,
+                "title": "AI Services",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 9
+                }
+            },
+            {
+                "id": 6,
+                "title": "AI Requests by Service",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_ai_requests_total[5m])",
+                        "legendFormat": "{{service_type}} - {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "reqps"
                     }
                 ],
                 "gridPos": {
                     "h": 8,
                     "w": 12,
                     "x": 0,
-                    "y": 8
+                    "y": 10
                 }
             },
             {
-                "id": 4,
-                "title": "HTTP Status Codes",
+                "id": 7,
+                "title": "AI Request Duration",
                 "type": "graph",
                 "targets": [
                     {
-                        "expr": "rate(django_http_requests_total[5m])",
-                        "legendFormat": "{{status}}"
+                        "expr": "histogram_quantile(0.95, rate(koroh_ai_request_duration_seconds_bucket[5m]))",
+                        "legendFormat": "{{service_type}} - 95th percentile"
+                    },
+                    {
+                        "expr": "histogram_quantile(0.50, rate(koroh_ai_request_duration_seconds_bucket[5m]))",
+                        "legendFormat": "{{service_type}} - 50th percentile"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "s"
                     }
                 ],
                 "gridPos": {
                     "h": 8,
                     "w": 12,
                     "x": 12,
-                    "y": 8
+                    "y": 10
+                }
+            },
+            {
+                "id": 8,
+                "title": "AI Token Usage",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_ai_tokens_used_total[5m])",
+                        "legendFormat": "{{service_type}} - {{token_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "tokens/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 24,
+                    "x": 0,
+                    "y": 18
+                }
+            },
+            {
+                "id": 9,
+                "title": "User Activity",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 26
+                }
+            },
+            {
+                "id": 10,
+                "title": "CV Uploads",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_cv_uploads_total[5m])",
+                        "legendFormat": "{{file_type}} - {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "uploads/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 0,
+                    "y": 27
+                }
+            },
+            {
+                "id": 11,
+                "title": "Portfolio Generations",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_portfolio_generations_total[5m])",
+                        "legendFormat": "{{template_type}} - {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "generations/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 8,
+                    "y": 27
+                }
+            },
+            {
+                "id": 12,
+                "title": "Job Searches",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_job_searches_total[5m])",
+                        "legendFormat": "{{search_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "searches/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 16,
+                    "y": 27
+                }
+            },
+            {
+                "id": 13,
+                "title": "Infrastructure",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 35
+                }
+            },
+            {
+                "id": 14,
+                "title": "Database Connections",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "django_db_connections_total",
+                        "legendFormat": "Total Connections"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 0,
+                    "y": 36
+                }
+            },
+            {
+                "id": 15,
+                "title": "Redis Memory Usage",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "redis_memory_used_bytes",
+                        "legendFormat": "Memory Used"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "bytes"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 8,
+                    "y": 36
+                }
+            },
+            {
+                "id": 16,
+                "title": "System CPU Usage",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                        "legendFormat": "CPU Usage %"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "percent",
+                        "max": 100,
+                        "min": 0
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 16,
+                    "y": 36
+                }
+            },
+            {
+                "id": 17,
+                "title": "Celery Tasks",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_celery_tasks_processed_total[5m])",
+                        "legendFormat": "{{task_name}} - {{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "tasks/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 44
+                }
+            },
+            {
+                "id": 18,
+                "title": "Pending Celery Tasks",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "koroh_celery_tasks_pending",
+                        "legendFormat": "{{queue_name}}"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 44
+                }
+            },
+            {
+                "id": 19,
+                "title": "Frontend Metrics",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 52
+                }
+            },
+            {
+                "id": 20,
+                "title": "Page Views",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_page_views_total[5m])",
+                        "legendFormat": "{{page}} - {{user_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "views/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 53
+                }
+            },
+            {
+                "id": 21,
+                "title": "User Interactions",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_user_interactions_total[5m])",
+                        "legendFormat": "{{interaction_type}} - {{component}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "interactions/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 53
+                }
+            },
+            {
+                "id": 22,
+                "title": "Client Errors",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_web_client_errors_total[5m])",
+                        "legendFormat": "{{error_type}} - {{component}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "errors/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 24,
+                    "x": 0,
+                    "y": 61
                 }
             }
         ],
@@ -82,6 +469,8 @@
             "from": "now-1h",
             "to": "now"
         },
-        "refresh": "30s"
+        "refresh": "30s",
+        "schemaVersion": 27,
+        "version": 1
     }
 }
