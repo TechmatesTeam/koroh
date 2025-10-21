@@ -164,7 +164,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         
         # Add user data to response
-        data['user'] = {
+        user_data = {
             'id': self.user.id,
             'email': self.user.email,
             'first_name': self.user.first_name,
@@ -174,7 +174,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'is_profile_complete': self.user.is_profile_complete,
         }
         
-        return data
+        # Return in consistent format with tokens object
+        return {
+            'user': user_data,
+            'tokens': {
+                'access': data['access'],
+                'refresh': data['refresh']
+            },
+            # Also include at root level for backward compatibility
+            'access': data['access'],
+            'refresh': data['refresh']
+        }
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
