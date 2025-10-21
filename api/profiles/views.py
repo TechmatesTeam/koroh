@@ -338,3 +338,190 @@ def cv_metadata(request):
         'cv_metadata': profile.cv_metadata,
         'has_metadata': bool(profile.cv_metadata)
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def generate_portfolio(request):
+    """
+    Generate a portfolio for the current user.
+    
+    Expects: {"template": "template_name", "portfolioName": "optional_name"}
+    """
+    try:
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        
+        template = request.data.get('template', 'modern-pro')
+        portfolio_name = request.data.get('portfolioName', '')
+        
+        # Generate portfolio URL
+        username = request.user.username or f"user{request.user.id}"
+        if portfolio_name:
+            portfolio_url = f"https://koroh.dev/@{username}/{portfolio_name}"
+        else:
+            portfolio_url = f"https://koroh.dev/@{username}"
+        
+        # Update profile with portfolio information
+        profile.portfolio_url = portfolio_url
+        profile.portfolio_settings = {
+            'template': template,
+            'portfolioName': portfolio_name,
+            'generated_at': timezone.now().isoformat(),
+            'customizations': {
+                'theme': 'light',
+                'primaryColor': '#0d9488',
+                'font': 'inter',
+                'layout': 'standard',
+            }
+        }
+        profile.save()
+        
+        # Create portfolio data response
+        portfolio_data = {
+            'id': str(profile.id),
+            'url': portfolio_url,
+            'template': template,
+            'username': username,
+            'portfolioName': portfolio_name,
+            'customizations': profile.portfolio_settings.get('customizations', {}),
+            'content': {
+                'title': f"{request.user.first_name} {request.user.last_name}".strip() or username,
+                'subtitle': profile.headline or 'Professional',
+                'bio': profile.summary or 'Professional portfolio',
+                'skills': profile.skills or [],
+            },
+            'generated_at': profile.portfolio_settings.get('generated_at')
+        }
+        
+        return Response({
+            'success': True,
+            'message': 'Portfolio generated successfully',
+            'portfolio': portfolio_data,
+            **portfolio_data  # Include portfolio data at root level for compatibility
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {
+                'error': 'Failed to generate portfolio',
+                'details': str(e)
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def list_portfolios(request):
+    """
+    List portfolios for the current user.
+    
+    Returns a list of user's portfolios.
+    """
+    try:
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        
+        portfolios = []
+        if profile.portfolio_url and profile.portfolio_settings:
+            username = request.user.username or f"user{request.user.id}"
+            portfolio_data = {
+                'id': str(profile.id),
+                'url': profile.portfolio_url,
+                'template': profile.portfolio_settings.get('template', 'modern-pro'),
+                'username': username,
+                'portfolioName': profile.portfolio_settings.get('portfolioName', ''),
+                'customizations': profile.portfolio_settings.get('customizations', {}),
+                'content': {
+                    'title': f"{request.user.first_name} {request.user.last_name}".strip() or username,
+                    'subtitle': profile.headline or 'Professional',
+                    'bio': profile.summary or 'Professional portfolio',
+                    'skills': profile.skills or [],
+                },
+                'generated_at': profile.portfolio_settings.get('generated_at')
+            }
+            portfolios.append(portfolio_data)
+        
+        return Response(portfolios, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {
+                'error': 'Failed to retrieve portfolios',
+                'details': str(e)
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PATCH'])
+@permission_classes([permissions.IsAuthenticated])
+def update_portfolio(request, portfolio_id):
+    """
+    Update portfolio customizations and content.
+    
+    Expects: {"customizations": {...}, "content": {...}}
+    """
+    try:
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        
+        if str(profile.id) != portfolio_id:
+            return Response(
+                {'error': 'Portfolio not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update portfolio settings
+        if not profile.portfolio_settings:
+            profile.portfolio_settings = {}
+        
+        if 'customizations' in request.data:
+            profile.portfolio_settings['customizations'] = request.data['customizations']
+        
+        if 'content' in request.data:
+            content = request.data['content']
+            # Update profile fields based on content
+            if 'title' in content:
+                # Split title into first and last name if possible
+                name_parts = content['title'].split(' ', 1)
+                if len(name_parts) >= 2:
+                    request.user.first_name = name_parts[0]
+                    request.user.last_name = name_parts[1]
+                    request.user.save()
+            
+            if 'subtitle' in content:
+                profile.headline = content['subtitle']
+            
+            if 'bio' in content:
+                profile.summary = content['bio']
+        
+        profile.portfolio_settings['updated_at'] = timezone.now().isoformat()
+        profile.save()
+        
+        # Return updated portfolio data
+        username = request.user.username or f"user{request.user.id}"
+        portfolio_data = {
+            'id': str(profile.id),
+            'url': profile.portfolio_url,
+            'template': profile.portfolio_settings.get('template', 'modern-pro'),
+            'username': username,
+            'portfolioName': profile.portfolio_settings.get('portfolioName', ''),
+            'customizations': profile.portfolio_settings.get('customizations', {}),
+            'content': {
+                'title': f"{request.user.first_name} {request.user.last_name}".strip() or username,
+                'subtitle': profile.headline or 'Professional',
+                'bio': profile.summary or 'Professional portfolio',
+                'skills': profile.skills or [],
+            },
+            'updated_at': profile.portfolio_settings.get('updated_at')
+        }
+        
+        return Response(portfolio_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {
+                'error': 'Failed to update portfolio',
+                'details': str(e)
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
