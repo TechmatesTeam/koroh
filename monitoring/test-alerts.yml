@@ -1,0 +1,115 @@
+# Test alert configurations for validating alerting system
+# These alerts have lower thresholds to trigger during testing
+
+groups:
+  - name: koroh_platform_test_alerts
+    rules:
+      # Test alert with very low threshold
+      - alert: TestHighErrorRate
+        expr: rate(django_http_requests_total{status=~"5.."}[5m]) > 0.01
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test alert for high error rate"
+          description: "This is a test alert with low threshold for validation"
+
+      # Test alert for response time
+      - alert: TestHighResponseTime
+        expr: histogram_quantile(0.95, rate(django_request_duration_seconds_bucket[5m])) > 1
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test alert for high response time"
+          description: "95th percentile response time is {{ $value }}s (test alert)"
+
+      # Test alert for active users (should trigger easily)
+      - alert: TestLowActiveUsers
+        expr: koroh_active_users < 100
+        for: 30s
+        labels:
+          severity: info
+          test: true
+        annotations:
+          summary: "Test alert for low active users"
+          description: "Only {{ $value }} active users detected (test alert)"
+
+      # Test AI service alert
+      - alert: TestAIServiceError
+        expr: rate(koroh_ai_requests_total{status="error"}[5m]) > 0.01
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test AI service error alert"
+          description: "AI service {{ $labels.service_type }} has errors (test alert)"
+
+      # Test infrastructure alert
+      - alert: TestHighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 50
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test high CPU usage alert"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }} (test alert)"
+
+      # Test database alert
+      - alert: TestHighDatabaseConnections
+        expr: django_db_connections_total > 10
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test high database connections alert"
+          description: "Database has {{ $value }} active connections (test alert)"
+
+      # Test cache alert
+      - alert: TestLowCacheHitRate
+        expr: rate(django_cache_get_hits_total[5m]) / (rate(django_cache_get_hits_total[5m]) + rate(django_cache_get_misses_total[5m])) < 0.9
+        for: 1m
+        labels:
+          severity: info
+          test: true
+        annotations:
+          summary: "Test low cache hit rate alert"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (test alert)"
+
+      # Test Celery alert
+      - alert: TestHighCeleryTaskFailures
+        expr: rate(koroh_celery_tasks_processed_total{status="error"}[5m]) > 0.01
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test Celery task failure alert"
+          description: "Celery task failure rate is high (test alert)"
+
+      # Test service availability
+      - alert: TestServiceDown
+        expr: up{job=~"django-api|nextjs-web"} == 0
+        for: 10s
+        labels:
+          severity: critical
+          test: true
+        annotations:
+          summary: "Test service down alert"
+          description: "{{ $labels.job }} service is down (test alert)"
+
+      # Test frontend alert
+      - alert: TestHighClientErrors
+        expr: rate(koroh_web_client_errors_total[5m]) > 0.01
+        for: 30s
+        labels:
+          severity: warning
+          test: true
+        annotations:
+          summary: "Test high client error rate alert"
+          description: "Client error rate is high (test alert)"
