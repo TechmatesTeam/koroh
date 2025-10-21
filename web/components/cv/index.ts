@@ -1,0 +1,1 @@
+export { CVUpload } from './cv-upload';
