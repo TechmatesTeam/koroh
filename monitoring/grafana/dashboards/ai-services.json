@@ -1,0 +1,293 @@
+{
+    "dashboard": {
+        "id": null,
+        "title": "Koroh AI Services",
+        "tags": [
+            "koroh",
+            "ai",
+            "bedrock"
+        ],
+        "style": "dark",
+        "timezone": "browser",
+        "editable": true,
+        "panels": [
+            {
+                "id": 1,
+                "title": "AI Service Performance",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            {
+                "id": 2,
+                "title": "AI Requests by Service Type",
+                "type": "piechart",
+                "targets": [
+                    {
+                        "expr": "sum by (service_type) (koroh_ai_requests_total)",
+                        "legendFormat": "{{service_type}}"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 0,
+                    "y": 1
+                }
+            },
+            {
+                "id": 3,
+                "title": "AI Request Success Rate",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "sum(rate(koroh_ai_requests_total{status=\"success\"}[5m])) / sum(rate(koroh_ai_requests_total[5m])) * 100",
+                        "legendFormat": "Success Rate %"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "red",
+                                    "value": null
+                                },
+                                {
+                                    "color": "yellow",
+                                    "value": 90
+                                },
+                                {
+                                    "color": "green",
+                                    "value": 95
+                                }
+                            ]
+                        }
+                    }
+                },
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 8,
+                    "y": 1
+                }
+            },
+            {
+                "id": 4,
+                "title": "Average AI Response Time",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "avg(koroh_ai_request_duration_seconds)",
+                        "legendFormat": "Avg Response Time"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "s",
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "green",
+                                    "value": null
+                                },
+                                {
+                                    "color": "yellow",
+                                    "value": 5
+                                },
+                                {
+                                    "color": "red",
+                                    "value": 10
+                                }
+                            ]
+                        }
+                    }
+                },
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 16,
+                    "y": 1
+                }
+            },
+            {
+                "id": 5,
+                "title": "CV Analysis Performance",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_ai_requests_total{service_type=\"cv_analysis\"}[5m])",
+                        "legendFormat": "{{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "reqps"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 9
+                }
+            },
+            {
+                "id": 6,
+                "title": "Portfolio Generation Performance",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_ai_requests_total{service_type=\"portfolio_generation\"}[5m])",
+                        "legendFormat": "{{status}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "reqps"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 9
+                }
+            },
+            {
+                "id": 7,
+                "title": "Token Usage Analysis",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 17
+                }
+            },
+            {
+                "id": 8,
+                "title": "Token Usage by Service",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_ai_tokens_used_total[5m])",
+                        "legendFormat": "{{service_type}} - {{token_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "tokens/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 24,
+                    "x": 0,
+                    "y": 18
+                }
+            },
+            {
+                "id": 9,
+                "title": "Total Tokens Consumed",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "sum(koroh_ai_tokens_used_total)",
+                        "legendFormat": "Total Tokens"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "short",
+                        "color": {
+                            "mode": "palette-classic"
+                        }
+                    }
+                },
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 0,
+                    "y": 26
+                }
+            },
+            {
+                "id": 10,
+                "title": "Input vs Output Tokens",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "sum by (token_type) (rate(koroh_ai_tokens_used_total[5m]))",
+                        "legendFormat": "{{token_type}}"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "tokens/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 16,
+                    "x": 8,
+                    "y": 26
+                }
+            },
+            {
+                "id": 11,
+                "title": "Error Analysis",
+                "type": "row",
+                "collapsed": false,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 34
+                }
+            },
+            {
+                "id": 12,
+                "title": "AI Service Errors",
+                "type": "graph",
+                "targets": [
+                    {
+                        "expr": "rate(koroh_ai_requests_total{status=\"error\"}[5m])",
+                        "legendFormat": "{{service_type}} errors"
+                    }
+                ],
+                "yAxes": [
+                    {
+                        "unit": "errors/sec"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 24,
+                    "x": 0,
+                    "y": 35
+                }
+            }
+        ],
+        "time": {
+            "from": "now-1h",
+            "to": "now"
+        },
+        "refresh": "30s",
+        "schemaVersion": 27,
+        "version": 1
+    }
+}

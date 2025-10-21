@@ -1,0 +1,190 @@
+groups:
+  - name: koroh_platform_alerts
+    rules:
+      # High-level service alerts
+      - alert: HighErrorRate
+        expr: rate(django_http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second for the last 5 minutes"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(django_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+
+      - alert: LowActiveUsers
+        expr: koroh_active_users < 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Very low active user count"
+          description: "Only {{ $value }} active users detected"
+
+      # AI Service alerts
+      - alert: AIServiceHighErrorRate
+        expr: rate(koroh_ai_requests_total{status="error"}[5m]) / rate(koroh_ai_requests_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High AI service error rate"
+          description: "AI service {{ $labels.service_type }} has {{ $value | humanizePercentage }} error rate"
+
+      - alert: AIServiceSlowResponse
+        expr: histogram_quantile(0.95, rate(koroh_ai_request_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI service slow response"
+          description: "AI service {{ $labels.service_type }} 95th percentile response time is {{ $value }}s"
+
+      - alert: HighTokenUsage
+        expr: rate(koroh_ai_tokens_used_total[1h]) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High AI token usage"
+          description: "Token usage rate is {{ $value }} tokens per hour"
+
+      # Infrastructure alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }} {{ $labels.mountpoint }}"
+
+      # Database alerts
+      - alert: HighDatabaseConnections
+        expr: django_db_connections_total > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection count"
+          description: "Database has {{ $value }} active connections"
+
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(django_db_execute_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries"
+          description: "95th percentile database query time is {{ $value }}s"
+
+      # Cache alerts
+      - alert: LowCacheHitRate
+        expr: rate(django_cache_get_hits_total[5m]) / (rate(django_cache_get_hits_total[5m]) + rate(django_cache_get_misses_total[5m])) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+      # Celery alerts
+      - alert: HighCeleryTaskFailureRate
+        expr: rate(koroh_celery_tasks_processed_total{status="error"}[5m]) / rate(koroh_celery_tasks_processed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Celery task failure rate"
+          description: "Celery task failure rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighPendingCeleryTasks
+        expr: sum(koroh_celery_tasks_pending) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of pending Celery tasks"
+          description: "{{ $value }} tasks are pending in Celery queues"
+
+      # Frontend alerts
+      - alert: HighClientErrorRate
+        expr: rate(koroh_web_client_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High client error rate"
+          description: "Client error rate is {{ $value }} errors per second"
+
+      - alert: LowPageViews
+        expr: rate(koroh_web_page_views_total[1h]) < 0.01
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low page view activity"
+          description: "Page view rate is {{ $value }} views per hour"
+
+      # Service availability alerts
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.job }} service is down on {{ $labels.instance }}"
+
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database is not responding"
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache service is not responding"
