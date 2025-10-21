@@ -38,6 +38,26 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
 
+# Security Configuration
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Session Security
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_AGE = 3600  # 1 hour
+
+# CSRF Protection
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = env('DJANGO_CORS_ALLOWED_ORIGINS')
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -57,6 +77,7 @@ THIRD_PARTY_APPS = [
     'django_celery_results',
     'django_extensions',
     'django_filters',
+    'django_prometheus',
 ]
 
 LOCAL_APPS = [
@@ -65,9 +86,19 @@ LOCAL_APPS = [
     'companies',
     'jobs',
     'peer_groups',
+    'ai_chat',
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
+    'koroh_platform.middleware.SecurityHeadersMiddleware',
+    'koroh_platform.middleware.PerformanceMiddleware',
+    'koroh_platform.middleware.RateLimitMiddleware',
+    'koroh_platform.middleware.CacheOptimizationMiddleware',
+    'koroh_platform.middleware.CompressionMiddleware',
+    'koroh_platform.middleware.DatabaseOptimizationMiddleware',
+    'koroh_platform.middleware.CORSMiddleware',
+    'koroh_platform.utils.logging.LoggingMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -76,6 +107,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'koroh_platform.urls'
@@ -102,7 +134,7 @@ WSGI_APPLICATION = 'koroh_platform.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_prometheus.db.backends.postgresql',
         'NAME': env('POSTGRES_DB'),
         'USER': env('POSTGRES_USER'),
         'PASSWORD': env('POSTGRES_PASSWORD'),
@@ -111,6 +143,10 @@ DATABASES = {
         'OPTIONS': {
             'connect_timeout': 60,
         },
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': True,
+        'CONN_MAX_AGE': 600,  # 10 minutes
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
@@ -118,18 +154,45 @@ DATABASES = {
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
+        'BACKEND': 'django_prometheus.cache.backends.redis.RedisCache',
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'TIMEOUT': 300,  # 5 minutes default
+        'KEY_PREFIX': 'koroh',
+        'VERSION': 1,
+    },
+    'sessions': {
+        'BACKEND': 'django_prometheus.cache.backends.redis.RedisCache',
+        'LOCATION': env('REDIS_URL', default='redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'TIMEOUT': 3600,  # 1 hour
+        'KEY_PREFIX': 'koroh_session',
+    },
+    'api_cache': {
+        'BACKEND': 'django_prometheus.cache.backends.redis.RedisCache',
+        'LOCATION': env('REDIS_URL', default='redis://localhost:6379/2'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'TIMEOUT': 600,  # 10 minutes
+        'KEY_PREFIX': 'koroh_api',
     }
 }
 
 # Session Configuration (Redis)
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
-SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_CACHE_ALIAS = 'sessions'
+SESSION_COOKIE_AGE = 3600  # 1 hour for security
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -220,6 +283,31 @@ CORS_ALLOWED_ORIGINS = env('DJANGO_CORS_ALLOWED_ORIGINS')
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in development
 
+# Enhanced CORS Security
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.koroh\.dev$",  # Production subdomains
+] if not DEBUG else []
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_EXPOSE_HEADERS = [
+    'x-response-time',
+    'x-cache',
+    'x-db-queries',
+]
+
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
 # AWS Configuration
 AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default='')
 AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default='')
@@ -268,6 +356,13 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
 # Logging Configuration
+import logging.config
+import os
+
+# Ensure logs directory exists
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -280,18 +375,75 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
+        'json': {
+            '()': 'koroh_platform.utils.logging.JSONFormatter',
+        },
+        'security': {
+            'format': 'SECURITY {levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django.log',
+            'maxBytes': 50 * 1024 * 1024,  # 50MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'errors.log',
+            'maxBytes': 50 * 1024 * 1024,  # 50MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+        'security_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'security.log',
+            'maxBytes': 50 * 1024 * 1024,  # 50MB
+            'backupCount': 10,
+            'formatter': 'security',
+        },
+        'ai_services_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'ai_services.log',
+            'maxBytes': 50 * 1024 * 1024,  # 50MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+        'celery_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'celery.log',
+            'maxBytes': 50 * 1024 * 1024,  # 50MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+        'performance_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'performance.log',
+            'maxBytes': 50 * 1024 * 1024,  # 50MB
+            'backupCount': 5,
+            'formatter': 'json',
         },
     },
     'root': {
@@ -304,10 +456,50 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'django.request': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'django.security': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
         'koroh_platform': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': False,
+        },
+        'koroh_platform.ai_services': {
+            'handlers': ['ai_services_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'koroh_platform.celery': {
+            'handlers': ['celery_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'koroh_platform.performance': {
+            'handlers': ['performance_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'koroh_platform.security': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['celery_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'celery.task': {
+            'handlers': ['celery_file'],
+            'level': 'INFO',
+            'propagate': True,
         },
     },
 }
