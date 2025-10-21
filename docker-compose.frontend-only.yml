@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Next.js Frontend (Frontend-only mode)
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    container_name: koroh_web_frontend_only
+    environment:
+      - NEXT_PUBLIC_USE_MOCK_API=true
+      - NEXT_PUBLIC_API_URL=
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-nextauth-secret-change-in-production}
+      - NEXTAUTH_URL=http://localhost:3000
+      - NODE_ENV=development
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    networks:
+      - koroh_frontend_network
+    command: npm run dev
+
+networks:
+  koroh_frontend_network:
+    driver: bridge
