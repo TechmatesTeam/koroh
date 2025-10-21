@@ -17,6 +17,7 @@ from datetime import datetime
 from .ai_services import ContentGenerationService, AIServiceConfig, ModelType
 from .cv_analysis_service import CVAnalysisResult
 from .bedrock_config import get_model_for_task
+from .metrics import track_ai_request, track_user_activity
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,8 @@ class PortfolioGenerationService:
         # Load default themes
         self.themes = self._load_default_themes()
     
+    @track_ai_request('portfolio_generation')
+    @track_user_activity('portfolio_generation')
     def generate_portfolio(
         self, 
         cv_data: CVAnalysisResult, 
