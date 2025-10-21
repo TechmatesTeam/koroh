@@ -13,9 +13,13 @@ services:
     restart: unless-stopped
 
   web:
-    command: >
-      sh -c "npm run build &&
-             npm start"
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    volumes: []  # Remove development volumes
+    command: ["node", "server.js"]
     restart: unless-stopped
 
   celery_worker:

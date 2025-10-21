@@ -619,7 +619,7 @@ def generate_portfolio_content(cv_data: Dict[str, Any], template_style: str = "p
             content_sections.append(f"""
 ## Get In Touch
 
-{contact.get('call_to_action', 'Let\'s connect and discuss opportunities!')}
+{contact.get('call_to_action', "Let's connect and discuss opportunities!")}
 
 **Contact Information:**
 - Email: {contact.get('email', '')}

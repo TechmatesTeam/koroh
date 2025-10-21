@@ -217,17 +217,17 @@ class CompanyViewSet(viewsets.ModelViewSet):
             )
         
         from .services import CompanyTrackingService
-        from authentication.serializers import UserSerializer
+        from authentication.serializers import UserProfileSerializer
         
         company = self.get_object()
         followers = CompanyTrackingService.get_company_followers(company)
         
         page = self.paginate_queryset(followers)
         if page is not None:
-            serializer = UserSerializer(page, many=True)
+            serializer = UserProfileSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         
-        serializer = UserSerializer(followers, many=True)
+        serializer = UserProfileSerializer(followers, many=True)
         return Response(serializer.data)
 
 
