@@ -27,11 +27,11 @@ services:
       - ./api:/app
     command: >
       sh -c "pip install -r requirements.txt &&
-             celery -A koroh worker --loglevel=info --reload"
+             celery -A koroh_platform worker --loglevel=info --reload"
 
   celery_beat:
     volumes:
       - ./api:/app
     command: >
       sh -c "pip install -r requirements.txt &&
-             celery -A koroh beat --loglevel=info"
+             celery -A koroh_platform beat --loglevel=info"
