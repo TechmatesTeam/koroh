@@ -429,3 +429,467 @@ class CompanyInsightServiceTest(TestCase):
         )
         self.assertEqual(len(growth_insights), 1)
         self.assertEqual(growth_insights[0].insight_type, 'growth')
+    
+    def test_update_company_insights(self):
+        """Test updating all company insights."""
+        from .services import CompanyInsightService
+        from jobs.models import Job
+        
+        # Create some jobs for insights
+        Job.objects.create(
+            title='Software Engineer',
+            company=self.company,
+            description='A software engineering role',
+            job_type='full_time',
+            experience_level='mid',
+            location='San Francisco, CA',
+            status='published',
+            salary_min=80000,
+            salary_max=120000
+        )
+        
+        result = CompanyInsightService.update_company_insights(self.company)
+        
+        self.assertTrue(result['success'])
+        self.assertGreater(result['insights_created'], 0)
+        self.assertIn('insight_types', result)
+
+
+class CompanyNotificationServiceTest(TestCase):
+    """Test cases for CompanyNotificationService."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='notification_test@example.com',
+            first_name='Notification',
+            last_name='User',
+            password='testpass123'
+        )
+        
+        self.company = Company.objects.create(
+            name='Notification Test Company',
+            description='A test company for notifications',
+            industry='Technology',
+            company_size='medium',
+            company_type='private',
+            headquarters='San Francisco, CA',
+            website='https://notificationtest.com',
+        )
+        
+        # Create a follow relationship
+        CompanyFollow.objects.create(
+            user=self.user,
+            company=self.company,
+            notifications_enabled=True
+        )
+    
+    def test_notify_followers_of_new_job(self):
+        """Test notifying followers of new job postings."""
+        from .services import CompanyNotificationService
+        from jobs.models import Job
+        from django.test import override_settings
+        from django.core import mail
+        
+        # Create a job
+        job = Job.objects.create(
+            title='Test Job',
+            company=self.company,
+            description='A test job',
+            job_type='full_time',
+            experience_level='mid',
+            location='San Francisco, CA',
+            status='published'
+        )
+        
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            result = CompanyNotificationService.notify_followers_of_new_job(
+                self.company, job
+            )
+            
+            self.assertEqual(result['notifications_sent'], 1)
+            self.assertEqual(result['total_followers'], 1)
+            self.assertEqual(len(result['failed_notifications']), 0)
+            
+            # Verify email was sent
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertIn('New Job at', mail.outbox[0].subject)
+    
+    def test_notify_followers_no_notifications_enabled(self):
+        """Test notification when no followers have notifications enabled."""
+        from .services import CompanyNotificationService
+        from jobs.models import Job
+        
+        # Disable notifications for the follower
+        follow = CompanyFollow.objects.get(user=self.user, company=self.company)
+        follow.notifications_enabled = False
+        follow.save()
+        
+        job = Job.objects.create(
+            title='Test Job',
+            company=self.company,
+            description='A test job',
+            job_type='full_time',
+            experience_level='mid',
+            location='San Francisco, CA',
+            status='published'
+        )
+        
+        result = CompanyNotificationService.notify_followers_of_new_job(
+            self.company, job
+        )
+        
+        self.assertEqual(result['notifications_sent'], 0)
+        self.assertIn('No followers with notifications enabled', result['message'])
+    
+    def test_notify_followers_of_company_update(self):
+        """Test notifying followers of company updates."""
+        from .services import CompanyNotificationService
+        from django.test import override_settings
+        from django.core import mail
+        
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            result = CompanyNotificationService.notify_followers_of_company_update(
+                self.company,
+                'general',
+                'We have exciting news to share!'
+            )
+            
+            self.assertEqual(result['notifications_sent'], 1)
+            self.assertEqual(result['total_followers'], 1)
+            
+            # Verify email was sent
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertIn('Update from', mail.outbox[0].subject)
+    
+    def test_send_weekly_digest(self):
+        """Test sending weekly digest to users."""
+        from .services import CompanyNotificationService
+        from jobs.models import Job
+        from django.utils import timezone
+        from datetime import timedelta
+        from django.test import override_settings
+        from django.core import mail
+        
+        # Create a recent job
+        Job.objects.create(
+            title='Recent Job',
+            company=self.company,
+            description='A recent job',
+            job_type='full_time',
+            experience_level='mid',
+            location='San Francisco, CA',
+            status='published',
+            posted_date=timezone.now() - timedelta(days=2)
+        )
+        
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            result = CompanyNotificationService.send_weekly_digest(self.user)
+            
+            self.assertTrue(result['digest_sent'])
+            self.assertGreater(result['activities_count'], 0)
+            self.assertEqual(result['companies_count'], 1)
+            
+            # Verify email was sent
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertIn('Weekly Company Updates', mail.outbox[0].subject)
+    
+    def test_send_weekly_digest_no_activities(self):
+        """Test weekly digest when there are no activities."""
+        from .services import CompanyNotificationService
+        
+        result = CompanyNotificationService.send_weekly_digest(self.user)
+        
+        self.assertFalse(result['digest_sent'])
+        self.assertIn('No activities to report', result['message'])
+
+
+class CompanyAPIViewTest(TestCase):
+    """Test cases for Company API views."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='company_api_test@example.com',
+            first_name='Company API',
+            last_name='User',
+            password='testpass123'
+        )
+        
+        self.admin_user = User.objects.create_user(
+            email='admin@example.com',
+            first_name='Admin',
+            last_name='User',
+            password='adminpass123',
+            is_staff=True
+        )
+        
+        self.company = Company.objects.create(
+            name='API Test Company',
+            description='A test company for API testing',
+            industry='Technology',
+            company_size='medium',
+            company_type='private',
+            headquarters='San Francisco, CA',
+            website='https://apitestcompany.com',
+        )
+    
+    def test_company_search_api(self):
+        """Test company search API endpoint."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        
+        response = client.post('/api/v1/companies/companies/search/', {
+            'query': 'API Test',
+            'industry': 'Technology'
+        })
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        # API uses pagination, so it returns 'count' instead of 'total_count'
+        self.assertIn('count', response.data)
+        
+        # Verify company is in results
+        company_names = [company['name'] for company in response.data['results']]
+        self.assertIn('API Test Company', company_names)
+    
+    def test_company_follow_api(self):
+        """Test company follow API endpoint."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        
+        response = client.post(f'/api/v1/companies/companies/{self.company.id}/follow/')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('message', response.data)
+        
+        # Verify follow was created
+        self.assertTrue(
+            CompanyFollow.objects.filter(user=self.user, company=self.company).exists()
+        )
+    
+    def test_company_unfollow_api(self):
+        """Test company unfollow API endpoint."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        
+        # First follow the company
+        CompanyFollow.objects.create(user=self.user, company=self.company)
+        
+        response = client.delete(f'/api/v1/companies/companies/{self.company.id}/unfollow/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        
+        # Verify follow was deleted
+        self.assertFalse(
+            CompanyFollow.objects.filter(user=self.user, company=self.company).exists()
+        )
+    
+    def test_company_insights_api(self):
+        """Test company insights API endpoint."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        from .services import CompanyInsightService
+        
+        client = APIClient()
+        
+        # Create some insights
+        CompanyInsightService.create_insight(
+            company=self.company,
+            insight_type='growth',
+            title='Test Insight',
+            is_public=True
+        )
+        
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/insights/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # API uses pagination
+        self.assertIn('results', response.data)
+        self.assertGreater(len(response.data['results']), 0)
+    
+    def test_company_stats_api(self):
+        """Test company statistics API endpoint."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        
+        # Create a follower
+        CompanyFollow.objects.create(user=self.user, company=self.company)
+        
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/stats/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('total_followers', response.data)
+        self.assertIn('total_jobs', response.data)
+        self.assertIn('profile_views', response.data)
+        self.assertEqual(response.data['total_followers'], 1)
+    
+    def test_company_view_count_increment(self):
+        """Test that company view count increments on retrieve."""
+        from rest_framework.test import APIClient
+        
+        client = APIClient()
+        initial_count = self.company.view_count
+        
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/')
+        
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.view_count, initial_count + 1)
+    
+    def test_update_insights_api_admin_only(self):
+        """Test update insights API endpoint (admin only)."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        
+        # Test without authentication
+        response = client.post(f'/api/v1/companies/companies/{self.company.id}/update_insights/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Test with regular user
+        client.force_authenticate(user=self.user)
+        response = client.post(f'/api/v1/companies/companies/{self.company.id}/update_insights/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Test with admin user
+        client.force_authenticate(user=self.admin_user)
+        response = client.post(f'/api/v1/companies/companies/{self.company.id}/update_insights/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('success', response.data)
+    
+    def test_company_followers_api_admin_only(self):
+        """Test company followers API endpoint (admin only)."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        
+        # Create a follower
+        CompanyFollow.objects.create(user=self.user, company=self.company)
+        
+        # Test without authentication - should return 401 or 403
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/followers/')
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+        
+        # Test with regular user
+        client.force_authenticate(user=self.user)
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/followers/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Test with admin user
+        client.force_authenticate(user=self.admin_user)
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/followers/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # API uses pagination
+        self.assertIn('results', response.data)
+    
+    def test_company_jobs_api(self):
+        """Test company jobs API endpoint."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        from jobs.models import Job
+        
+        client = APIClient()
+        
+        # Create a job for the company
+        Job.objects.create(
+            title='Company Job',
+            company=self.company,
+            description='A job from the company',
+            job_type='full_time',
+            experience_level='mid',
+            location='San Francisco, CA',
+            status='published'
+        )
+        
+        response = client.get(f'/api/v1/companies/companies/{self.company.id}/jobs/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # API uses pagination
+        self.assertIn('results', response.data)
+        self.assertGreater(len(response.data['results']), 0)
+        
+        # Verify job is in results
+        job_titles = [job['title'] for job in response.data['results']]
+        self.assertIn('Company Job', job_titles)
+
+
+class CompanyFollowAPITest(TestCase):
+    """Test cases for CompanyFollow API views."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='follow_test@example.com',
+            first_name='Follow',
+            last_name='User',
+            password='testpass123'
+        )
+        
+        self.company1 = Company.objects.create(
+            name='Follow Test Company 1',
+            description='First test company',
+            industry='Technology',
+            company_size='medium',
+            company_type='private',
+            headquarters='San Francisco, CA',
+            website='https://followtest1.com',
+        )
+        
+        self.company2 = Company.objects.create(
+            name='Follow Test Company 2',
+            description='Second test company',
+            industry='Finance',
+            company_size='large',
+            company_type='public',
+            headquarters='New York, NY',
+            website='https://followtest2.com',
+        )
+        
+        # Create follows
+        CompanyFollow.objects.create(user=self.user, company=self.company1)
+        CompanyFollow.objects.create(user=self.user, company=self.company2)
+    
+    def test_get_user_follows(self):
+        """Test getting user's company follows."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        
+        response = client.get('/api/v1/companies/follows/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+    
+    def test_get_followed_companies(self):
+        """Test getting companies followed by user."""
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        
+        response = client.get('/api/v1/companies/follows/companies/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        
+        # Verify companies are in results
+        company_names = [company['name'] for company in response.data]
+        self.assertIn('Follow Test Company 1', company_names)
+        self.assertIn('Follow Test Company 2', company_names)
