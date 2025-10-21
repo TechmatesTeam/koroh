@@ -9,12 +9,14 @@ An AI-powered professional networking platform that helps users build meaningful
 
 ## 🌟 Features
 
+- **Complete Authentication System**: User registration, login, password reset (works frontend-only!)
 - **AI-Powered Matching**: Intelligent connection recommendations using AWS Bedrock
 - **Professional Profiles**: Comprehensive user profiles with skills, experience, and goals
 - **Smart Networking**: Personalized networking suggestions and introductions
 - **Real-time Messaging**: Secure communication between professionals
 - **Event Management**: Professional events and networking opportunities
 - **Analytics Dashboard**: Insights into networking activities and connections
+- **Frontend-Only Mode**: Full functionality using only port 3000 (no backend required)
 
 ## 🏗️ Project Information
 
@@ -41,7 +43,21 @@ An AI-powered professional networking platform that helps users build meaningful
 - Docker and Docker Compose
 - Make (optional, for convenience commands)
 
-### Development Setup
+### Frontend-Only Setup (Recommended for Testing)
+
+1. Clone the repository and navigate to the project directory
+
+2. Start the frontend-only environment:
+
+   ```bash
+   make frontend-only
+   ```
+
+3. Access the application:
+   - Frontend: http://localhost:3000
+   - Demo Page: http://localhost:3000/demo
+
+### Full Development Setup
 
 1. Clone the repository and navigate to the project directory
 
@@ -52,7 +68,7 @@ An AI-powered professional networking platform that helps users build meaningful
    # Edit .env with your configuration
    ```
 
-3. Start the development environment:
+3. Start the full development environment:
 
    ```bash
    make dev
@@ -105,7 +121,10 @@ An AI-powered professional networking platform that helps users build meaningful
 ## Development Commands
 
 ```bash
-# Start development environment
+# Start frontend-only environment (no backend required)
+make frontend-only
+
+# Start full development environment
 make dev
 
 # View logs
@@ -132,6 +151,24 @@ make down
 # Clean up everything
 make clean
 ```
+
+## Authentication System
+
+Koroh includes a complete authentication system that works in two modes:
+
+### Frontend-Only Mode (Port 3000 Only)
+- ✅ User registration and login
+- ✅ Password reset functionality  
+- ✅ Session management
+- ✅ Demo accounts available
+- ✅ No backend required
+
+### Demo Accounts
+Visit http://localhost:3000/demo to try:
+- Email: `demo@koroh.com`, Password: `demo123`
+- Email: `john@example.com`, Password: `password123`
+
+See [web/AUTH_README.md](web/AUTH_README.md) for detailed authentication documentation.
 
 ## Environment Variables
 
