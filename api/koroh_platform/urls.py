@@ -23,14 +23,18 @@ urlpatterns = [
         path('profiles/', include('profiles.urls')),
         path('jobs/', include('jobs.urls')),
         path('companies/', include('companies.urls')),
-        path('', include('peer_groups.urls')),
-        # path('ai/', include('ai_services.urls')),
+        path('peer_groups/', include('peer_groups.urls')),
+        path('', include('peer_groups.urls')),  # Keep backward compatibility
+        path('ai/', include('ai_chat.urls')),
     ])),
     
     # Health check endpoint
     path('health/', include([
         path('', lambda request: HttpResponse('OK'), name='health_check'),
     ])),
+    
+    # Prometheus metrics endpoint
+    path('metrics/', include('django_prometheus.urls')),
 ]
 
 # Serve media files in development
