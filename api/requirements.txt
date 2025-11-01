@@ -24,6 +24,7 @@ botocore==1.34.0
 celery==5.3.4
 django-celery-beat==2.5.0
 django-celery-results==2.5.1
+flower==2.0.1
 
 # File handling and utilities
 Pillow==10.1.0
