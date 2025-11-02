@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import { clsx } from 'clsx';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard' },
-  { name: 'AI Chat', href: '/ai-chat' },
-  { name: 'Jobs', href: '/jobs' },
-  { name: 'Companies', href: '/companies' },
-  { name: 'Peer Groups', href: '/peer-groups' },
-  { name: 'Portfolio', href: '/portfolio' },
+  { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+  { name: 'AI Chat', href: '/ai-chat', icon: '🤖' },
+  { name: 'Jobs', href: '/jobs', icon: '💼' },
+  { name: 'Companies', href: '/companies', icon: '🏢' },
+  { name: 'Peer Groups', href: '/peer-groups', icon: '👥' },
+  { name: 'Portfolio', href: '/portfolio', icon: '📁' },
 ];
 
 export function Navigation() {
@@ -64,21 +64,30 @@ export function Navigation() {
                 Koroh
               </Link>
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={clsx(
-                    'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
-                    pathname === item.href
-                      ? 'border-indigo-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                  )}
-                >
-                  {item.name}
-                </Link>
-              ))}
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-1">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href || 
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={clsx(
+                      'nav-transition inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium relative',
+                      isActive
+                        ? 'nav-item-active bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    )}
+                  >
+                    <span className="mr-2 text-base">{item.icon}</span>
+                    {item.name}
+                    {isActive && (
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1 w-1 h-1 bg-indigo-500 rounded-full"></div>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
@@ -163,22 +172,31 @@ export function Navigation() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="sm:hidden">
-          <div className="pt-2 pb-3 space-y-1">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={clsx(
-                  'block pl-3 pr-4 py-2 border-l-4 text-base font-medium',
-                  pathname === item.href
-                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
-                )}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.name}
-              </Link>
-            ))}
+          <div className="pt-2 pb-3 space-y-1 px-2">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href || 
+                (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={clsx(
+                    'flex items-center px-3 py-3 rounded-lg text-base font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span className="mr-3 text-lg">{item.icon}</span>
+                  {item.name}
+                  {isActive && (
+                    <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"></div>
+                  )}
+                </Link>
+              );
+            })}
           </div>
           <div className="pt-4 pb-3 border-t border-gray-200">
             <div className="flex items-center px-4">
