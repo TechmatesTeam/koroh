@@ -41,7 +41,14 @@ export function RegisterForm() {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      const { confirmPassword, ...userData } = data;
+      // Map frontend field name to backend expected field name
+      const userData = {
+        email: data.email,
+        password: data.password,
+        password_confirm: data.confirmPassword,
+        first_name: data.first_name,
+        last_name: data.last_name,
+      };
       await registerUser(userData);
       addNotification({
         type: 'success',
