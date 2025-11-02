@@ -18,6 +18,7 @@ export function PublicNavigation({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigationLinks = [
+    { name: 'AI Chat', href: '/ai-chat' },
     { name: 'Jobs', href: '/#jobs' },
     { name: 'Companies', href: '/#companies' },
     { name: 'Networking', href: '/#networking' },

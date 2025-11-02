@@ -10,6 +10,7 @@ import { clsx } from 'clsx';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard' },
+  { name: 'AI Chat', href: '/ai-chat' },
   { name: 'Jobs', href: '/jobs' },
   { name: 'Companies', href: '/companies' },
   { name: 'Peer Groups', href: '/peer-groups' },
