@@ -9,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import F
 from django.utils import timezone
+import logging
+
 from .models import Job, JobApplication, JobSavedByUser
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateUpdateSerializer,
@@ -16,13 +18,22 @@ from .serializers import (
     JobRecommendationSerializer
 )
 from .services import JobSearchService, JobRecommendationService
+from koroh_platform.permissions import (
+    IsJobPosterOrReadOnly,
+    IsApplicationOwnerOrJobPoster,
+    IsOwnerOrReadOnly,
+    IsAnonymousOrAuthenticated,
+    log_permission_denied
+)
+
+logger = logging.getLogger('koroh_platform.security')
 
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for Job model."""
     
     queryset = Job.objects.filter(is_active=True, status='published')
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsJobPosterOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = [
         'job_type', 'experience_level', 'work_arrangement', 'company',
@@ -81,7 +92,7 @@ class JobViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[IsAnonymousOrAuthenticated])
     def search(self, request):
         """Advanced job search."""
         serializer = JobSearchSerializer(data=request.data)
@@ -232,7 +243,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for JobApplication model."""
     
     serializer_class = JobApplicationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsApplicationOwnerOrJobPoster]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'job__company', 'job__job_type']
     ordering_fields = ['applied_at', 'updated_at', 'ai_match_score']
@@ -252,6 +263,12 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         # Only allow job poster or company admin to update status
         if (request.user != application.job.company.created_by and 
             not request.user.is_staff):
+            log_permission_denied(
+                request.user, 
+                'update_application_status', 
+                f'application_{application.id}',
+                'Not job poster or admin'
+            )
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
@@ -293,7 +310,7 @@ class JobSavedViewSet(viewsets.ModelViewSet):
     """ViewSet for JobSavedByUser model."""
     
     serializer_class = JobSavedSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwnerOrReadOnly]
     ordering = ['-saved_at']
     
     def get_queryset(self):

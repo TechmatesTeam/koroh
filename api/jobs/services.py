@@ -215,6 +215,11 @@ class JobRecommendationService:
             
             # Sort by match score and return top results
             recommended_jobs.sort(key=lambda x: x.ai_match_score, reverse=True)
+            
+            # Send real-time notification about new recommendations
+            if recommended_jobs:
+                self._send_realtime_job_recommendations(user.id, recommended_jobs[:3])
+            
             return recommended_jobs[:limit]
             
         except Exception as e:
@@ -442,6 +447,36 @@ class JobRecommendationService:
         except Exception as e:
             logger.error(f"Error generating AI tags: {e}")
             return []
+    
+    def _send_realtime_job_recommendations(self, user_id: int, jobs: List[Job]) -> None:
+        """Send real-time job recommendation updates to user."""
+        try:
+            from koroh_platform.realtime import send_dashboard_update
+            
+            job_data = []
+            for job in jobs:
+                job_data.append({
+                    'id': str(job.id),
+                    'title': job.title,
+                    'company': {
+                        'name': job.company.name,
+                        'logo': job.company.logo.url if job.company.logo else None
+                    },
+                    'location': job.location,
+                    'job_type': job.job_type,
+                    'match_score': getattr(job, 'ai_match_score', 0) * 100,
+                    'posted_date': job.posted_date.isoformat(),
+                    'salary_range': job.salary_range_display
+                })
+            
+            send_dashboard_update(user_id, 'job_recommendation', {
+                'recommendations': job_data,
+                'count': len(job_data),
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to send real-time job recommendations: {e}")
 
 
 class CompanySearchService:
