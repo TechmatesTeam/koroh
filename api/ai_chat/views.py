@@ -19,15 +19,21 @@ from .serializers import (
     SendMessageSerializer
 )
 from .services import ChatService, PlatformIntegrationService, AnonymousChatService
+from koroh_platform.permissions import (
+    AIServicePermission,
+    IsOwnerOrReadOnly,
+    IsAnonymousOrAuthenticated,
+    log_permission_denied
+)
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('koroh_platform.security')
 
 
 class ChatSessionListView(APIView):
     """
     List user's chat sessions or create a new one.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AIServicePermission]
     
     def get(self, request):
         """Get list of user's chat sessions."""
@@ -69,7 +75,7 @@ class ChatSessionDetailView(APIView):
     """
     Retrieve, update, or delete a specific chat session.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsOwnerOrReadOnly]
     
     def get(self, request, session_id):
         """Get chat session with message history."""
@@ -144,7 +150,7 @@ class SendMessageView(APIView):
     """
     Send a message to the AI chat and get a response.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AIServicePermission]
     
     def post(self, request):
         """Send message and get AI response."""
@@ -180,7 +186,7 @@ class SendMessageView(APIView):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([AIServicePermission])
 def quick_chat(request):
     """
     Quick chat endpoint for single message/response without session management.
@@ -215,7 +221,7 @@ def quick_chat(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.AllowAny])
+@permission_classes([IsAnonymousOrAuthenticated])
 def anonymous_chat(request):
     """
     Anonymous chat endpoint with message limits.
@@ -308,7 +314,7 @@ def get_client_ip(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([AIServicePermission])
 def analyze_cv_chat(request):
     """
     Chat endpoint specifically for CV analysis requests.
@@ -346,7 +352,7 @@ def analyze_cv_chat(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([AIServicePermission])
 def generate_portfolio_chat(request):
     """
     Chat endpoint specifically for portfolio generation requests.
@@ -381,7 +387,7 @@ def generate_portfolio_chat(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([AIServicePermission])
 def job_recommendations_chat(request):
     """
     Chat endpoint specifically for job recommendation requests.
@@ -411,5 +417,52 @@ def job_recommendations_chat(request):
         logger.error(f"Error in job recommendations chat for user {request.user.id}: {e}")
         return Response(
             {'error': 'Failed to get job recommendations'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AIServicePermission])
+def get_conversation_context(request, session_id):
+    """
+    Get conversation context information for a chat session.
+    """
+    try:
+        session = get_object_or_404(
+            ChatSession, 
+            id=session_id, 
+            user=request.user, 
+            is_active=True
+        )
+        
+        context_data = {}
+        if hasattr(session, 'context'):
+            context = session.context
+            context_data = {
+                'conversation_stage': context.conversation_stage,
+                'active_topics': [t.get('topic') for t in (context.conversation_topics or [])[-5:]],
+                'recent_intents': [i.get('intent') for i in (context.user_intent_history or [])[-3:]],
+                'key_entities': {
+                    entity_type: [e.get('value') for e in entities[-3:]]
+                    for entity_type, entities in (context.mentioned_entities or {}).items()
+                },
+                'user_goals': context.conversation_goals or [],
+                'key_insights': [i.get('insight') for i in (context.key_insights or [])[-3:]],
+                'context_confidence': context.context_confidence,
+                'active_features': context.active_features or [],
+                'conversation_summary': context.conversation_summary,
+                'context_version': context.context_version
+            }
+        
+        return Response({
+            'session_id': str(session.id),
+            'message_count': session.messages.count(),
+            'context': context_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting conversation context for session {session_id}: {e}")
+        return Response(
+            {'error': 'Failed to get conversation context'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

@@ -7,6 +7,7 @@ urlpatterns = [
     # Chat session management
     path('sessions/', views.ChatSessionListView.as_view(), name='session-list'),
     path('sessions/<uuid:session_id>/', views.ChatSessionDetailView.as_view(), name='session-detail'),
+    path('sessions/<uuid:session_id>/context/', views.get_conversation_context, name='session-context'),
     
     # Message sending
     path('send/', views.SendMessageView.as_view(), name='send-message'),

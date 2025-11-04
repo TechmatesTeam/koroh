@@ -403,7 +403,7 @@ class ConversationalAIService(BaseAIService):
     """
     Service for conversational AI interactions and chat assistance.
     
-    Optimized for maintaining context and providing helpful responses.
+    Optimized for maintaining context and providing concise, helpful responses.
     """
     
     def __init__(self, config: Optional[AIServiceConfig] = None):
@@ -411,18 +411,18 @@ class ConversationalAIService(BaseAIService):
         if config is None:
             config = AIServiceConfig(
                 model_type=ModelType.CLAUDE_3_HAIKU,  # Faster model for conversations
-                max_tokens=1500,
-                temperature=0.8,  # Higher temperature for natural conversations
+                max_tokens=800,  # Reduced from 1500 for more concise responses
+                temperature=0.6,  # Reduced from 0.8 for more focused responses
                 max_retries=2
             )
         super().__init__(config)
     
     def process(self, input_data: Dict[str, Any]) -> str:
         """
-        Process conversational input and generate response.
+        Process conversational input and generate context-aware response.
         
         Args:
-            input_data: Dictionary containing 'message', 'context', and 'user_profile'
+            input_data: Dictionary containing 'message', 'context', 'user_profile', and enhanced context data
             
         Returns:
             AI response as string
@@ -430,14 +430,110 @@ class ConversationalAIService(BaseAIService):
         message = input_data.get('message', '')
         context = input_data.get('context', [])
         user_profile = input_data.get('user_profile', {})
+        conversation_context = input_data.get('conversation_context', {})
+        conversation_memory = input_data.get('conversation_memory', {})
         
         if not message:
             raise ValueError("Message is required for conversational AI")
         
-        prompt = self._build_conversation_prompt(message, context, user_profile)
+        # Build enhanced prompt with context awareness
+        prompt = self._build_enhanced_conversation_prompt(
+            message, context, user_profile, conversation_context, conversation_memory
+        )
         response = self._invoke_model_with_retry(prompt)
         
         return self._extract_response_text(response)
+    
+    def _build_enhanced_conversation_prompt(
+        self, 
+        message: str, 
+        context: List[Dict[str, str]], 
+        user_profile: Dict[str, Any],
+        conversation_context: Dict[str, Any],
+        conversation_memory: Dict[str, Any]
+    ) -> str:
+        """Build enhanced context-aware prompt."""
+        # Build conversation history
+        context_str = ""
+        if context:
+            context_str = "\n".join([
+                f"{msg['role']}: {msg['content']}" 
+                for msg in context[-4:]
+            ])
+        
+        # Enhanced profile information
+        profile_summary = self._create_profile_summary(user_profile)
+        
+        # Build context awareness section
+        context_awareness = self._build_context_awareness_section(conversation_context, conversation_memory)
+        
+        return f"""You are Koroh AI, a highly context-aware assistant for the Koroh professional networking platform.
+
+ENHANCED CONTEXT-AWARE GUIDELINES:
+- Keep responses under 150 words but be contextually intelligent
+- Reference and build upon previous conversation topics and user goals
+- Acknowledge user's progress and journey
+- Use established context to provide more relevant suggestions
+- Be direct and actionable while maintaining conversation continuity
+- Show understanding of user's evolving needs and preferences
+
+User Profile: {profile_summary}
+
+{context_awareness}
+
+{f"Recent Conversation:\n{context_str}" if context_str else ""}
+
+Current Message: {message}
+
+Provide a contextually intelligent response that demonstrates understanding of our ongoing conversation:"""
+    
+    def _build_context_awareness_section(
+        self, 
+        conversation_context: Dict[str, Any], 
+        conversation_memory: Dict[str, Any]
+    ) -> str:
+        """Build the context awareness section for the prompt."""
+        sections = []
+        
+        # Conversation stage and topics
+        stage = conversation_context.get('stage', 'initial')
+        active_topics = conversation_context.get('active_topics', [])
+        if active_topics:
+            sections.append(f"Active Topics: {', '.join(active_topics)}")
+        
+        # User goals and insights
+        user_goals = conversation_context.get('user_goals', [])
+        if user_goals:
+            sections.append(f"User Goals: {', '.join(user_goals)}")
+        
+        key_insights = conversation_context.get('key_insights', [])
+        if key_insights:
+            sections.append(f"Key Insights: {', '.join(key_insights)}")
+        
+        # Recent intents
+        recent_intents = conversation_context.get('recent_intents', [])
+        if recent_intents:
+            sections.append(f"Recent User Intents: {', '.join(recent_intents)}")
+        
+        # Conversation memory
+        summary = conversation_memory.get('summary', '')
+        if summary:
+            sections.append(f"Conversation Summary: {summary}")
+        
+        previous_recommendations = conversation_memory.get('previous_recommendations', [])
+        if previous_recommendations:
+            recent_recs = previous_recommendations[-2:]  # Last 2 recommendations
+            sections.append(f"Previous Recommendations: {', '.join(str(rec) for rec in recent_recs)}")
+        
+        # Follow-up actions
+        follow_up_actions = conversation_memory.get('follow_up_actions', [])
+        if follow_up_actions:
+            sections.append(f"Pending Actions: {', '.join(follow_up_actions)}")
+        
+        if sections:
+            return f"CONVERSATION CONTEXT:\n{chr(10).join(f'- {section}' for section in sections)}\n"
+        else:
+            return f"CONVERSATION STAGE: {stage.title()}\n"
     
     def _build_conversation_prompt(
         self, 
@@ -445,31 +541,119 @@ class ConversationalAIService(BaseAIService):
         context: List[Dict[str, str]], 
         user_profile: Dict[str, Any]
     ) -> str:
-        """Build prompt for conversational AI."""
+        """Build context-aware prompt for conversational AI with enhanced understanding."""
+        # Build conversation history
         context_str = ""
         if context:
             context_str = "\n".join([
                 f"{msg['role']}: {msg['content']}" 
-                for msg in context[-5:]  # Last 5 messages for context
+                for msg in context[-4:]  # Increased to 4 for better context awareness
             ])
         
-        profile_str = json.dumps(user_profile, indent=2) if user_profile else "No profile available"
+        # Enhanced profile information
+        profile_summary = self._create_profile_summary(user_profile)
         
-        return f"""
-        You are Koroh AI, a helpful assistant for the Koroh professional networking platform.
-        You help users with career advice, job searching, portfolio creation, and networking.
+        return f"""You are Koroh AI, a context-aware assistant for the Koroh professional networking platform.
+
+CONTEXT-AWARE RESPONSE GUIDELINES:
+- Keep responses under 150 words but be contextually relevant
+- Reference previous conversation when appropriate
+- Build on established topics and user goals
+- Use bullet points for lists
+- Be direct and actionable
+- Acknowledge user's journey and progress
+- Focus on immediate next steps that align with conversation flow
+
+User Context: {profile_summary}
+
+{f"Conversation History:\n{context_str}" if context_str else ""}
+
+Current Message: {message}
+
+Provide a contextually aware, brief response that builds on our conversation:"""
+    
+    def _create_profile_summary(self, user_profile: Dict[str, Any]) -> str:
+        """Create a concise profile summary for context."""
+        if not user_profile:
+            return "New user"
         
-        User Profile:
-        {profile_str}
+        name = user_profile.get('name', 'User')
+        industry = user_profile.get('industry', '')
+        experience_level = user_profile.get('experience_level', '')
+        has_cv = user_profile.get('has_cv', False)
+        has_portfolio = user_profile.get('has_portfolio', False)
         
-        Recent Conversation Context:
-        {context_str}
+        summary_parts = [name]
+        if industry:
+            summary_parts.append(f"in {industry}")
+        if experience_level:
+            summary_parts.append(f"({experience_level})")
         
-        Current User Message: {message}
+        status_parts = []
+        if has_cv:
+            status_parts.append("CV uploaded")
+        if has_portfolio:
+            status_parts.append("Portfolio created")
         
-        Provide a helpful, professional, and personalized response. Be concise but informative.
-        If the user asks about platform features, explain how they can use Koroh's AI-powered tools.
-        """
+        if status_parts:
+            summary_parts.append(f"- {', '.join(status_parts)}")
+        
+        return " ".join(summary_parts)
+
+
+class ConciseChatService(ConversationalAIService):
+    """
+    Specialized service for ultra-concise chat responses.
+    
+    Optimized for brief, actionable responses with minimal context.
+    """
+    
+    def __init__(self, config: Optional[AIServiceConfig] = None):
+        """Initialize concise chat service with strict limits."""
+        if config is None:
+            config = AIServiceConfig(
+                model_type=ModelType.CLAUDE_3_HAIKU,  # Fastest model
+                max_tokens=400,  # Very limited for conciseness
+                temperature=0.4,  # Low temperature for focused responses
+                max_retries=2
+            )
+        super().__init__(config)
+    
+    def _build_conversation_prompt(
+        self, 
+        message: str, 
+        context: List[Dict[str, str]], 
+        user_profile: Dict[str, Any]
+    ) -> str:
+        """Build ultra-concise conversation prompt."""
+        # Only use last message for context to keep it minimal
+        last_context = ""
+        if context:
+            last_msg = context[-1]
+            last_context = f"Previous: {last_msg.get('content', '')[:50]}..."
+        
+        # Minimal profile info
+        user_name = user_profile.get('name', 'User') if user_profile else 'User'
+        
+        return f"""You are Koroh AI. Respond in 1-2 sentences max.
+
+User: {user_name}
+{last_context}
+
+Current: {message}
+
+Brief response:"""
+    
+    def process(self, input_data: Dict[str, Any]) -> str:
+        """Process input with additional conciseness enforcement."""
+        response = super().process(input_data)
+        
+        # Enforce strict word limit
+        words = response.split()
+        if len(words) > 50:  # Approximately 1-2 sentences
+            response = ' '.join(words[:50]) + '...'
+        
+        return response
 
 
 # Service factory for easy instantiation
@@ -495,3 +679,8 @@ class AIServiceFactory:
     def create_conversational_service(config: Optional[AIServiceConfig] = None) -> ConversationalAIService:
         """Create a conversational AI service instance."""
         return ConversationalAIService(config)
+    
+    @staticmethod
+    def create_concise_chat_service(config: Optional[AIServiceConfig] = None) -> 'ConciseChatService':
+        """Create a concise chat service instance optimized for brief responses."""
+        return ConciseChatService(config)
