@@ -41,3 +41,8 @@ setuptools
 # Monitoring and metrics
 prometheus_client==0.19.0
 django-prometheus==2.3.1
+
+# WebSocket support for real-time features
+channels==4.0.0
+channels-redis==4.1.0
+daphne==4.0.0
