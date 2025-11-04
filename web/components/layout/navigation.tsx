@@ -54,7 +54,7 @@ export function Navigation() {
   }
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="navigation-fixed bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo and main navigation */}
@@ -74,16 +74,20 @@ export function Navigation() {
                     key={item.name}
                     href={item.href}
                     className={clsx(
-                      'nav-transition inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium relative',
+                      'nav-transition inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium relative group',
+                      'transform transition-all duration-300 ease-out',
                       isActive
-                        ? 'nav-item-active bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'nav-item-active bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-700 shadow-md border border-indigo-200 scale-105'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:scale-105 hover:shadow-sm'
                     )}
                   >
-                    <span className="mr-2 text-base">{item.icon}</span>
+                    <span className="mr-2 text-base transition-transform duration-300 group-hover:scale-110">{item.icon}</span>
                     {item.name}
                     {isActive && (
-                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1 w-1 h-1 bg-indigo-500 rounded-full"></div>
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1 w-2 h-2 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full animate-pulse"></div>
+                    )}
+                    {!isActive && (
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full transition-all duration-300 group-hover:w-8"></div>
                     )}
                   </Link>
                 );
@@ -171,9 +175,9 @@ export function Navigation() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="sm:hidden">
+        <div className="sm:hidden animate-slide-in-down">
           <div className="pt-2 pb-3 space-y-1 px-2">
-            {navigation.map((item) => {
+            {navigation.map((item, index) => {
               const isActive = pathname === item.href || 
                 (item.href !== '/dashboard' && pathname.startsWith(item.href));
               
@@ -182,17 +186,19 @@ export function Navigation() {
                   key={item.name}
                   href={item.href}
                   className={clsx(
-                    'flex items-center px-3 py-3 rounded-lg text-base font-medium transition-all duration-200',
+                    'flex items-center px-3 py-3 rounded-lg text-base font-medium transition-all duration-300 transform group',
+                    'animate-fade-in-left',
                     isActive
-                      ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-700 shadow-md border border-indigo-200 scale-105'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:scale-105 hover:shadow-sm'
                   )}
+                  style={{ animationDelay: `${index * 0.1}s` }}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <span className="mr-3 text-lg">{item.icon}</span>
+                  <span className="mr-3 text-lg transition-transform duration-300 group-hover:scale-110">{item.icon}</span>
                   {item.name}
                   {isActive && (
-                    <div className="ml-auto w-2 h-2 bg-indigo-500 rounded-full"></div>
+                    <div className="ml-auto w-2 h-2 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full animate-pulse"></div>
                   )}
                 </Link>
               );

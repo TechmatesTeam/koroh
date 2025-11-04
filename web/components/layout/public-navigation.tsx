@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { NavLink } from '@/components/ui/nav-link';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cssClasses } from '@/lib/design-system';
@@ -21,11 +22,11 @@ export function PublicNavigation({
   const pathname = usePathname();
 
   const navigationLinks = [
-    { name: 'AI Chat', href: '/ai-chat', icon: '🤖' },
-    { name: 'Jobs', href: '/#jobs', icon: '💼' },
-    { name: 'Companies', href: '/#companies', icon: '🏢' },
-    { name: 'Networking', href: '/#networking', icon: '👥' },
-    { name: 'Demo', href: '/demo', icon: '🎯' },
+    { name: 'AI Chat', href: '/ai-chat', icon: '🤖', type: 'page' },
+    { name: 'Jobs', href: '/#jobs', icon: '💼', type: 'section' },
+    { name: 'Companies', href: '/#companies', icon: '🏢', type: 'section' },
+    { name: 'Networking', href: '/#networking', icon: '👥', type: 'section' },
+    { name: 'Demo', href: '/demo', icon: '🎯', type: 'page' },
   ];
 
   return (
@@ -42,12 +43,13 @@ export function PublicNavigation({
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-2">
             {navigationLinks.map((link) => {
-              const isActive = pathname === link.href || 
-                (link.href.startsWith('/#') && pathname === '/') ||
-                (link.href !== '/' && pathname.startsWith(link.href.split('#')[0]));
+              // Fix active state logic - only show active for exact matches
+              const isActive = link.type === 'page' 
+                ? pathname === link.href.split('#')[0]
+                : false; // Section links should not show as active in nav
               
               return (
-                <Link
+                <NavLink
                   key={link.name}
                   href={link.href}
                   className={clsx(
@@ -59,7 +61,7 @@ export function PublicNavigation({
                 >
                   <span className="mr-2">{link.icon}</span>
                   {link.name}
-                </Link>
+                </NavLink>
               );
             })}
           </div>
@@ -68,18 +70,18 @@ export function PublicNavigation({
           {showAuthButtons && (
             <div className="hidden md:flex items-center space-x-4">
               {currentPage !== 'login' && (
-                <Link href="/auth/login">
-                  <Button variant="ghost" className="text-gray-700 hover:text-teal-600 hover:bg-teal-50">
+                <NavLink href="/auth/login">
+                  <Button variant="ghost" className="text-gray-700 hover:text-teal-600 hover:bg-teal-50" type="button">
                     Sign In
                   </Button>
-                </Link>
+                </NavLink>
               )}
               {currentPage !== 'register' && (
-                <Link href="/auth/register">
-                  <Button className={cssClasses.button.primary}>
+                <NavLink href="/auth/register">
+                  <Button className={cssClasses.button.primary} type="button">
                     Join Now
                   </Button>
-                </Link>
+                </NavLink>
               )}
             </div>
           )}
@@ -107,12 +109,13 @@ export function PublicNavigation({
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
             {navigationLinks.map((link) => {
-              const isActive = pathname === link.href || 
-                (link.href.startsWith('/#') && pathname === '/') ||
-                (link.href !== '/' && pathname.startsWith(link.href.split('#')[0]));
+              // Fix active state logic for mobile - only show active for exact matches
+              const isActive = link.type === 'page' 
+                ? pathname === link.href.split('#')[0]
+                : false; // Section links should not show as active in nav
               
               return (
-                <Link
+                <NavLink
                   key={link.name}
                   href={link.href}
                   className={clsx(
@@ -128,29 +131,29 @@ export function PublicNavigation({
                   {isActive && (
                     <div className="ml-auto w-2 h-2 bg-teal-500 rounded-full"></div>
                   )}
-                </Link>
+                </NavLink>
               );
             })}
             
             {showAuthButtons && (
               <div className="pt-4 space-y-2">
                 {currentPage !== 'login' && (
-                  <Link
+                  <NavLink
                     href="/auth/login"
                     className="block px-3 py-2 text-gray-700 hover:text-teal-600 hover:bg-teal-50 rounded-md font-medium"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
-                  </Link>
+                  </NavLink>
                 )}
                 {currentPage !== 'register' && (
-                  <Link
+                  <NavLink
                     href="/auth/register"
                     className="block px-3 py-2 bg-teal-600 text-white hover:bg-teal-700 rounded-md font-medium text-center"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Join Now
-                  </Link>
+                  </NavLink>
                 )}
               </div>
             )}
