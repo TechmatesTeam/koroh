@@ -289,7 +289,7 @@ class GroupNotificationService:
     
     def _send_email_notification(self, user: User, notification_data: Dict[str, Any]) -> None:
         """
-        Send email notification to user.
+        Send email notification to user using professional templates.
         
         Args:
             user: User to send email to
@@ -299,19 +299,43 @@ class GroupNotificationService:
             notification_type = notification_data.get('type')
             group = notification_data.get('group')
             
-            # Prepare email content based on notification type
-            subject, message = self._prepare_email_content(notification_type, notification_data)
+            # Import here to avoid circular imports
+            from authentication.email_templates import send_peer_group_activity_email, send_peer_group_invitation_email
             
-            if subject and message:
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=self.from_email,
-                    recipient_list=[user.email],
-                    fail_silently=True  # Don't raise exceptions for email failures
+            # Send appropriate professional email based on notification type
+            success = False
+            
+            if notification_type == 'group_invitation':
+                inviter = notification_data.get('inviter')
+                success = send_peer_group_invitation_email(user, group, inviter)
+            
+            elif notification_type in ['new_post', 'comment_on_post', 'reply_to_comment', 'new_member_joined']:
+                # Use peer group activity email for these types
+                success = send_peer_group_activity_email(
+                    user=user,
+                    group=group,
+                    activity_type=notification_type,
+                    **notification_data  # Pass all notification data as context
                 )
+            
+            else:
+                # Fallback to basic email for other notification types
+                subject, message = self._prepare_email_content(notification_type, notification_data)
                 
-                logger.info(f"Sent email notification to {user.email}: {notification_type}")
+                if subject and message:
+                    send_mail(
+                        subject=subject,
+                        message=message,
+                        from_email=self.from_email,
+                        recipient_list=[user.email],
+                        fail_silently=True
+                    )
+                    success = True
+            
+            if success:
+                logger.info(f"Sent professional email notification to {user.email}: {notification_type}")
+            else:
+                logger.warning(f"Failed to send professional email notification to {user.email}: {notification_type}")
             
         except Exception as e:
             logger.error(f"Error sending email notification to {user.email}: {e}")

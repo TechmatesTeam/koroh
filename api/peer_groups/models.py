@@ -445,6 +445,10 @@ class GroupMembership(models.Model):
         # Update group member count if status changed
         if is_new or old_status != self.status:
             self.group.update_member_count()
+            
+            # Send real-time notification for new active members
+            if is_new and self.status == 'active':
+                self._send_realtime_member_joined_notification()
     
     def delete(self, *args, **kwargs):
         """Override delete to update group member count."""
@@ -488,6 +492,26 @@ class GroupMembership(models.Model):
     def can_moderate(self):
         """Check if the member can moderate the group."""
         return self.role in ['moderator', 'admin'] and self.status == 'active'
+    
+    def _send_realtime_member_joined_notification(self):
+        """Send real-time notification for new member."""
+        try:
+            from koroh_platform.realtime import send_peer_group_update
+            
+            member_data = {
+                'id': self.user.id,
+                'name': self.user.get_full_name(),
+                'profile_picture': getattr(self.user.profile, 'profile_picture', None),
+                'joined_at': self.joined_at.isoformat(),
+                'role': self.role,
+                'group_name': self.group.name
+            }
+            
+            send_peer_group_update(self.group.slug, 'member_joined', member_data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('koroh_platform')
+            logger.error(f"Failed to send real-time member joined notification: {e}")
 
 
 class GroupAdminship(models.Model):
@@ -687,6 +711,9 @@ class GroupPost(models.Model):
             ).first()
             if membership:
                 membership.increment_post_count()
+            
+            # Send real-time notification
+            self._send_realtime_post_notification()
     
     def increment_view_count(self):
         """Increment the view count."""
@@ -711,6 +738,32 @@ class GroupPost(models.Model):
         if tag not in self.tags:
             self.tags.append(tag)
             self.save(update_fields=['tags'])
+    
+    def _send_realtime_post_notification(self):
+        """Send real-time notification for new post."""
+        try:
+            from koroh_platform.realtime import send_peer_group_update
+            
+            post_data = {
+                'id': str(self.id),
+                'title': self.title,
+                'content': self.content[:200] + '...' if len(self.content) > 200 else self.content,
+                'post_type': self.post_type,
+                'author': {
+                    'id': self.author.id,
+                    'name': self.author.get_full_name(),
+                    'profile_picture': getattr(self.author.profile, 'profile_picture', None)
+                },
+                'created_at': self.created_at.isoformat(),
+                'like_count': self.like_count,
+                'comment_count': self.comment_count
+            }
+            
+            send_peer_group_update(self.group.slug, 'new_post', post_data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('koroh_platform')
+            logger.error(f"Failed to send real-time post notification: {e}")
 
 
 class GroupComment(models.Model):
@@ -788,6 +841,9 @@ class GroupComment(models.Model):
             ).first()
             if membership:
                 membership.increment_comment_count()
+            
+            # Send real-time notification
+            self._send_realtime_comment_notification()
     
     def increment_like_count(self):
         """Increment the like count."""
@@ -804,3 +860,29 @@ class GroupComment(models.Model):
     def is_reply(self):
         """Check if this comment is a reply to another comment."""
         return self.parent is not None
+    
+    def _send_realtime_comment_notification(self):
+        """Send real-time notification for new comment."""
+        try:
+            from koroh_platform.realtime import send_peer_group_update
+            
+            comment_data = {
+                'id': str(self.id),
+                'content': self.content[:150] + '...' if len(self.content) > 150 else self.content,
+                'post_id': str(self.post.id),
+                'post_title': self.post.title,
+                'author': {
+                    'id': self.author.id,
+                    'name': self.author.get_full_name(),
+                    'profile_picture': getattr(self.author.profile, 'profile_picture', None)
+                },
+                'created_at': self.created_at.isoformat(),
+                'like_count': self.like_count,
+                'is_reply': self.is_reply
+            }
+            
+            send_peer_group_update(self.post.group.slug, 'new_comment', comment_data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('koroh_platform')
+            logger.error(f"Failed to send real-time comment notification: {e}")

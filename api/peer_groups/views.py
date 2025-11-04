@@ -15,7 +15,15 @@ from django.db.models import Q, Count, Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-logger = logging.getLogger(__name__)
+from koroh_platform.permissions import (
+    IsGroupMemberOrReadOnly,
+    IsGroupAdminOrOwner,
+    IsOwnerOrAdminOrReadOnly,
+    IsAnonymousOrAuthenticated,
+    log_permission_denied
+)
+
+logger = logging.getLogger('koroh_platform.security')
 
 from .models import (
     PeerGroup, GroupMembership, GroupAdminship,
@@ -40,7 +48,7 @@ class PeerGroupViewSet(ModelViewSet):
     actions for membership management and group discovery.
     """
     
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsGroupMemberOrReadOnly]
     lookup_field = 'slug'
     
     def get_queryset(self):
@@ -89,15 +97,23 @@ class PeerGroupViewSet(ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated]
+            permission_classes = [IsGroupAdminOrOwner]
+        elif self.action in ['discover', 'trending', 'search']:
+            permission_classes = [IsAnonymousOrAuthenticated]
         else:
-            permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+            permission_classes = [IsGroupMemberOrReadOnly]
         return [permission() for permission in permission_classes]
     
     def update(self, request, *args, **kwargs):
         """Update group (only admins can edit)."""
         group = self.get_object()
         if not group.is_admin(request.user):
+            log_permission_denied(
+                request.user, 
+                'update_group', 
+                f'group_{group.id}',
+                'Not group admin'
+            )
             return Response(
                 {'error': 'Only group admins can edit group settings.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -108,6 +124,12 @@ class PeerGroupViewSet(ModelViewSet):
         """Delete group (only creator can delete)."""
         group = self.get_object()
         if group.created_by != request.user:
+            log_permission_denied(
+                request.user, 
+                'delete_group', 
+                f'group_{group.id}',
+                'Not group creator'
+            )
             return Response(
                 {'error': 'Only the group creator can delete the group.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -783,7 +805,7 @@ class GroupPostViewSet(ModelViewSet):
     """
     
     serializer_class = GroupPostSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsGroupMemberOrReadOnly]
     
     def get_queryset(self):
         """Get posts for a specific group."""
@@ -809,6 +831,12 @@ class GroupPostViewSet(ModelViewSet):
         """Update post (only author or admins can edit)."""
         post = self.get_object()
         if not (post.author == request.user or post.group.is_admin(request.user)):
+            log_permission_denied(
+                request.user, 
+                'update_post', 
+                f'post_{post.id}',
+                'Not author or group admin'
+            )
             return Response(
                 {'error': 'Only the author or group admins can edit this post.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -819,6 +847,12 @@ class GroupPostViewSet(ModelViewSet):
         """Delete post (only author or admins can delete)."""
         post = self.get_object()
         if not (post.author == request.user or post.group.is_admin(request.user)):
+            log_permission_denied(
+                request.user, 
+                'delete_post', 
+                f'post_{post.id}',
+                'Not author or group admin'
+            )
             return Response(
                 {'error': 'Only the author or group admins can delete this post.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -935,7 +969,7 @@ class GroupCommentViewSet(ModelViewSet):
     """
     
     serializer_class = GroupCommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsGroupMemberOrReadOnly]
     
     def get_queryset(self):
         """Get comments for a specific post."""
