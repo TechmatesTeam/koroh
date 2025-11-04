@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { Send, Bot, User, Loader2, History, Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -435,21 +436,23 @@ export function FullScreenAIChat() {
                         Register for unlimited chat and access to all features
                       </p>
                       <div className="flex gap-2 justify-center">
-                        <Button
-                          size="sm"
-                          onClick={() => window.location.href = '/auth/register'}
-                          className="text-xs"
-                        >
-                          Register Free
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.location.href = '/auth/login'}
-                          className="text-xs"
-                        >
-                          Login
-                        </Button>
+                        <Link href="/auth/register">
+                          <Button
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Register Free
+                          </Button>
+                        </Link>
+                        <Link href="/auth/login">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Login
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -662,21 +665,23 @@ export function FullScreenAIChat() {
                           Register for unlimited chat and access to all features
                         </p>
                         <div className="flex gap-2 justify-center">
-                          <Button
-                            size="sm"
-                            onClick={() => window.location.href = '/auth/register'}
-                            className="text-xs"
-                          >
-                            Register Free
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.location.href = '/auth/login'}
-                            className="text-xs"
-                          >
-                            Login
-                          </Button>
+                          <Link href="/auth/register">
+                            <Button
+                              size="sm"
+                              className="text-xs"
+                            >
+                              Register Free
+                            </Button>
+                          </Link>
+                          <Link href="/auth/login">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                            >
+                              Login
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     </div>

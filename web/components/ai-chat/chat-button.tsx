@@ -33,8 +33,9 @@ export function ChatButton({ className = '', initialMessage, showBadge = true }:
       <div className={`fixed bottom-4 right-4 z-40 ${className}`}>
         <Button
           onClick={() => setIsChatOpen(true)}
-          className="chat-button-hover relative h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg hover:shadow-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="chat-button-hover relative h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg hover:shadow-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300 hover:scale-110 active:scale-95"
           size="lg"
+          animated={true}
         >
           <Bot className="h-5 w-5 sm:h-6 sm:w-6" />
           {!user && (

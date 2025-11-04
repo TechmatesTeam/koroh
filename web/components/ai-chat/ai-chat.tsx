@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, X, Minimize2, Maximize2 } from 'lucide-react';
+import Link from 'next/link';
+import { Send, Bot, User, Loader2, X, Minimize2, Maximize2, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import { useNotifications } from '@/contexts/notification-context';
 import { ChatMessage, ChatSession } from '@/types';
+import { ConversationContext } from './conversation-context';
 
 interface AIChatProps {
   isOpen: boolean;
@@ -31,6 +33,7 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
   const [messagesRemaining, setMessagesRemaining] = useState<number | null>(null);
   const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false);
   const [isLimitExceeded, setIsLimitExceeded] = useState(false);
+  const [showContext, setShowContext] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -274,6 +277,17 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
             )}
           </div>
           <div className="flex items-center space-x-1">
+            {user && currentSession && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowContext(!showContext)}
+                className="h-8 w-8 p-0"
+                title="Show conversation context"
+              >
+                <Brain className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -302,12 +316,15 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
                   <Bot className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-lg font-medium mb-2">Welcome to Koroh AI!</p>
                   <p className="text-sm mb-4">
-                    I'm here to help you with your career journey. 
+                    I'm your context-aware career assistant. I remember our conversations and build on them to provide better help.
                     {!user && " Try me out with 5 free messages!"}
                   </p>
                   
                   {user ? (
                     <div className="space-y-2">
+                      <div className="text-xs text-green-600 bg-green-50 p-2 rounded mb-3">
+                        🧠 I'll remember our conversation and provide contextual assistance
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -344,13 +361,14 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
                       <div className="text-xs text-gray-400">
                         <p>🎯 5 free messages to try our AI</p>
                         <p>🚀 Register for unlimited access</p>
+                        <p>🧠 I'll remember our conversation context</p>
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {messages.map((message) => (
+              {messages.map((message, index) => (
                 <div
                   key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -364,18 +382,30 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
                   >
                     <div className="flex items-start space-x-2">
                       {message.role === 'assistant' && (
-                        <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div className="flex flex-col items-center">
+                          <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          {index > 2 && (
+                            <div className="w-2 h-2 bg-green-400 rounded-full mt-1" title="Context-aware response" />
+                          )}
+                        </div>
                       )}
                       {message.role === 'user' && (
                         <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       )}
                       <div className="flex-1">
                         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                        }`}>
-                          {formatMessageTime(message.created_at)}
-                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className={`text-xs ${
+                            message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                          }`}>
+                            {formatMessageTime(message.created_at)}
+                          </p>
+                          {message.role === 'assistant' && index > 2 && (
+                            <span className="text-xs text-green-600 bg-green-100 px-1 rounded">
+                              Context-aware
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -414,21 +444,23 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
                     Register for unlimited chat and access to all features
                   </p>
                   <div className="flex gap-2 justify-center">
-                    <Button
-                      size="sm"
-                      onClick={() => window.location.href = '/auth/register'}
-                      className="text-xs"
-                    >
-                      Register Free
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.location.href = '/auth/login'}
-                      className="text-xs"
-                    >
-                      Login
-                    </Button>
+                    <Link href="/auth/register">
+                      <Button
+                        size="sm"
+                        className="text-xs"
+                      >
+                        Register Free
+                      </Button>
+                    </Link>
+                    <Link href="/auth/login">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        Login
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -508,6 +540,15 @@ export function AIChat({ isOpen, onClose, initialMessage, className = '' }: AICh
           </CardContent>
         )}
       </Card>
+      
+      {/* Conversation Context Component */}
+      {user && currentSession && (
+        <ConversationContext
+          sessionId={currentSession.id}
+          isVisible={showContext}
+          onToggle={() => setShowContext(!showContext)}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { AIChat } from './ai-chat';
 import { ChatSessions } from './chat-sessions';
 import { api } from '@/lib/api';
 import { ChatSession } from '@/types';
+import { useAIChat } from '@/lib/hooks/use-realtime';
 
 interface ChatInterfaceProps {
   isOpen: boolean;
@@ -20,6 +21,17 @@ export function ChatInterface({ isOpen, onClose, className = '' }: ChatInterface
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'sessions'>('chat');
+  
+  // Real-time AI chat connection
+  const aiChat = useAIChat(selectedSessionId, {
+    autoConnect: isOpen,
+    onConnect: () => {
+      console.log('AI Chat WebSocket connected');
+    },
+    onDisconnect: () => {
+      console.log('AI Chat WebSocket disconnected');
+    }
+  });
 
   useEffect(() => {
     if (selectedSessionId) {
