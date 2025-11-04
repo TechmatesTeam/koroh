@@ -1,0 +1,147 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Your Weekly {{ site_name }} Digest{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Hello {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p>Here's your personalized weekly digest with the latest opportunities, insights, and updates from your {{ site_name }} network.</p>
+</div>
+
+{% if new_jobs_count > 0 %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🎯 {{ new_jobs_count }} New Job{{ new_jobs_count|pluralize }} This Week</h3>
+    {% for job in featured_jobs %}
+    <div style="margin: 15px 0; padding: 15px 0; border-bottom: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 5px 0; color: #4a5568;">{{ job.title }}</h4>
+        <p style="margin: 0; color: #718096; font-size: 14px;">
+            <strong>{{ job.company.name }}</strong> • {{ job.location }}
+            {% if job.salary_range %} • {{ job.salary_range }}{% endif %}
+        </p>
+        <p style="margin: 10px 0 0 0; color: #4a5568; font-size: 14px;">{{ job.description|truncatewords:20 }}</p>
+    </div>
+    {% endfor %}
+    {% if new_jobs_count > featured_jobs|length %}
+    <p style="margin: 15px 0 0 0; color: #718096; font-size: 14px;">
+        + {{ new_jobs_count|add:featured_jobs|length|add:"-"|add:featured_jobs|length }} more jobs matching your profile
+    </p>
+    {% endif %}
+</div>
+
+<div style="text-align: center; margin: 20px 0;">
+    <a href="{{ jobs_url }}" class="cta-button">View All Jobs</a>
+</div>
+{% endif %}
+
+{% if company_updates %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🏢 Company Updates</h3>
+    {% for update in company_updates %}
+    <div style="margin: 15px 0; padding: 15px 0; border-bottom: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 5px 0; color: #4a5568;">{{ update.company.name }}</h4>
+        <p style="margin: 0; color: #718096; font-size: 14px;">{{ update.update_type|title }} • {{ update.created_at|timesince }} ago</p>
+        <p style="margin: 10px 0 0 0; color: #4a5568; font-size: 14px;">{{ update.message|truncatewords:25 }}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div style="text-align: center; margin: 20px 0;">
+    <a href="{{ companies_url }}" class="cta-button" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">View Company Updates</a>
+</div>
+{% endif %}
+
+{% if peer_group_activity %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🤝 Peer Group Activity</h3>
+    {% for activity in peer_group_activity %}
+    <div style="margin: 15px 0; padding: 15px 0; border-bottom: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 5px 0; color: #4a5568;">{{ activity.group.name }}</h4>
+        <p style="margin: 0; color: #718096; font-size: 14px;">
+            {{ activity.activity_count }} new post{{ activity.activity_count|pluralize }} • {{ activity.new_members_count }} new member{{ activity.new_members_count|pluralize }}
+        </p>
+        {% if activity.top_post %}
+        <p style="margin: 10px 0 0 0; color: #4a5568; font-size: 14px;">
+            <strong>Top post:</strong> "{{ activity.top_post.title }}" by {{ activity.top_post.author.get_full_name }}
+        </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div style="text-align: center; margin: 20px 0;">
+    <a href="{{ groups_url }}" class="cta-button" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);">Check Group Activity</a>
+</div>
+{% endif %}
+
+<div class="content">
+    <p><strong>📊 Your Week in Numbers:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>{{ profile_views }}</strong> profile views</li>
+        <li><strong>{{ job_applications }}</strong> job applications submitted</li>
+        <li><strong>{{ new_connections }}</strong> new professional connections</li>
+        <li><strong>{{ portfolio_views }}</strong> portfolio views</li>
+    </ul>
+</div>
+
+{% if recommendations %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">💡 Personalized Recommendations</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        {% for recommendation in recommendations %}
+        <li style="margin: 8px 0;">{{ recommendation }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if trending_skills %}
+<div class="content">
+    <p><strong>🔥 Trending Skills in {{ user.profile.industry }}:</strong></p>
+    <div style="margin: 15px 0;">
+        {% for skill in trending_skills %}
+        <span style="background-color: #e2e8f0; color: #4a5568; padding: 6px 12px; border-radius: 16px; font-size: 14px; margin: 0 8px 8px 0; display: inline-block;">{{ skill.name }}</span>
+        {% endfor %}
+    </div>
+    <p style="color: #718096; font-size: 14px;">Consider adding these skills to your profile to stay competitive!</p>
+</div>
+{% endif %}
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🎯 Action Items for Next Week</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        {% if action_items %}
+            {% for item in action_items %}
+            <li style="margin: 5px 0;">{{ item }}</li>
+            {% endfor %}
+        {% else %}
+        <li>Apply to 2-3 jobs that match your skills</li>
+        <li>Engage with posts in your peer groups</li>
+        <li>Update your profile with any new achievements</li>
+        <li>Follow 1-2 new companies in your industry</li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="content">
+    <p><strong>Quick Links:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><a href="{{ dashboard_url }}" style="color: #667eea;">Your Dashboard</a></li>
+        <li><a href="{{ profile_url }}" style="color: #667eea;">Update Profile</a></li>
+        <li><a href="{{ jobs_url }}" style="color: #667eea;">Browse Jobs</a></li>
+        <li><a href="{{ companies_url }}" style="color: #667eea;">Discover Companies</a></li>
+        <li><a href="{{ groups_url }}" style="color: #667eea;">Join Peer Groups</a></li>
+    </ul>
+</div>
+
+<div class="secondary-info">
+    <p><strong>Manage Your Digest:</strong> You can <a href="{{ digest_settings_url }}" style="color: #667eea;">customize your digest preferences</a> or <a href="{{ unsubscribe_url }}" style="color: #667eea;">unsubscribe from weekly digests</a> at any time.</p>
+</div>
+
+<div class="content">
+    <p>Keep building your career momentum!</p>
+    <p><strong>The {{ site_name }} Insights Team</strong></p>
+</div>
+{% endblock %}

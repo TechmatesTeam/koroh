@@ -1,0 +1,109 @@
+{% extends "emails/base.html" %}
+
+{% block title %}New Activity in {{ group.name }} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Hello {{ user.first_name }}!
+</div>
+
+{% if activity_type == "new_post" %}
+<div class="content">
+    <p>There's a new post in the <strong>{{ group.name }}</strong> group that you might find interesting.</p>
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">📝 {{ post.title }}</h3>
+    <p style="margin: 0 0 10px 0; color: #718096; font-size: 14px;">
+        by <strong>{{ post.author.get_full_name }}</strong> • {{ post.created_at|timesince }} ago
+    </p>
+    <p style="margin: 0; color: #4a5568;">{{ post.content|truncatewords:50 }}</p>
+    {% if post.tags.all %}
+    <div style="margin: 15px 0 0 0;">
+        {% for tag in post.tags.all %}
+        <span style="background-color: #e2e8f0; color: #4a5568; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px;">#{{ tag.name }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ post_url }}" class="cta-button">Read Full Post</a>
+</div>
+
+{% elif activity_type == "new_comment" %}
+<div class="content">
+    <p><strong>{{ comment.author.get_full_name }}</strong> commented on your post "<strong>{{ post.title }}</strong>" in the <strong>{{ group.name }}</strong> group.</p>
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">💬 New Comment</h3>
+    <p style="margin: 0; color: #4a5568;">{{ comment.content|truncatewords:30 }}</p>
+    <p style="margin: 10px 0 0 0; color: #718096; font-size: 14px;">{{ comment.created_at|timesince }} ago</p>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ post_url }}" class="cta-button">View Comment & Reply</a>
+</div>
+
+{% elif activity_type == "new_member" %}
+<div class="content">
+    <p><strong>{{ new_member.get_full_name }}</strong> has joined the <strong>{{ group.name }}</strong> group!</p>
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">👋 Welcome New Member</h3>
+    <p style="margin: 0; color: #4a5568;">
+        <strong>{{ new_member.get_full_name }}</strong>
+        {% if new_member.profile.headline %}
+        <br>{{ new_member.profile.headline }}
+        {% endif %}
+        {% if new_member.profile.location %}
+        <br>📍 {{ new_member.profile.location }}
+        {% endif %}
+    </p>
+    {% if new_member.profile.skills %}
+    <p style="margin: 15px 0 0 0; color: #718096; font-size: 14px;">
+        <strong>Skills:</strong> {{ new_member.profile.skills|slice:":5"|join:", " }}
+        {% if new_member.profile.skills|length > 5 %}and {{ new_member.profile.skills|length|add:"-5" }} more{% endif %}
+    </p>
+    {% endif %}
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ group_url }}" class="cta-button">Welcome the New Member</a>
+</div>
+
+{% endif %}
+
+<div class="content">
+    <p><strong>Group Stats:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>{{ group.members.count }}</strong> members</li>
+        <li><strong>{{ group.posts.count }}</strong> posts this month</li>
+        <li><strong>{{ group.industry }}</strong> industry focus</li>
+        <li><strong>{{ group.experience_level }}</strong> experience level</li>
+    </ul>
+</div>
+
+{% if suggested_actions %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">💡 Suggested Actions</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        {% for action in suggested_actions %}
+        <li style="margin: 5px 0;">{{ action }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="content">
+    <p><strong>Manage Your Notifications:</strong></p>
+    <p>You can <a href="{{ notification_settings_url }}" style="color: #667eea;">adjust your notification preferences</a> or <a href="{{ unsubscribe_url }}" style="color: #667eea;">unsubscribe from this group's emails</a> at any time.</p>
+</div>
+
+<div class="content">
+    <p>Stay engaged, stay connected!</p>
+    <p><strong>The {{ site_name }} Community Team</strong></p>
+</div>
+{% endblock %}

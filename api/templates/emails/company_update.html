@@ -1,0 +1,88 @@
+{% extends "emails/base.html" %}
+
+{% block title %}{{ company.name }} Update - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Hello {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p>There's an exciting update from <strong>{{ company.name }}</strong>, a company you're following on {{ site_name }}.</p>
+</div>
+
+{% if update_type == "new_job" %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🎯 New Job Opening</h3>
+    <h4 style="color: #4a5568; margin: 0 0 10px 0;">{{ job.title }}</h4>
+    <p style="margin: 5px 0; color: #718096;">📍 {{ job.location }}</p>
+    {% if job.salary_range %}
+    <p style="margin: 5px 0; color: #718096;">💰 {{ job.salary_range }}</p>
+    {% endif %}
+    <p style="margin: 15px 0 0 0; color: #4a5568;">{{ job.description|truncatewords:30 }}</p>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ job_url }}" class="cta-button">View Job Details</a>
+</div>
+
+{% elif update_type == "company_news" %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">📰 Company News</h3>
+    <p style="margin: 0; color: #4a5568;">{{ update_message }}</p>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ company_url }}" class="cta-button">Learn More</a>
+</div>
+
+{% elif update_type == "funding" %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">💰 Funding Update</h3>
+    <p style="margin: 0; color: #4a5568;">{{ company.name }} has secured new funding! This could mean new opportunities and growth.</p>
+    {% if update_message %}
+    <p style="margin: 15px 0 0 0; color: #718096;">{{ update_message }}</p>
+    {% endif %}
+</div>
+
+{% elif update_type == "expansion" %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🚀 Company Expansion</h3>
+    <p style="margin: 0; color: #4a5568;">{{ company.name }} is expanding! New locations and opportunities may be available.</p>
+    {% if update_message %}
+    <p style="margin: 15px 0 0 0; color: #718096;">{{ update_message }}</p>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">📢 Company Update</h3>
+    <p style="margin: 0; color: #4a5568;">{{ update_message }}</p>
+</div>
+{% endif %}
+
+<div class="content">
+    <p><strong>About {{ company.name }}:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Industry:</strong> {{ company.industry }}</li>
+        <li><strong>Size:</strong> {{ company.size }}</li>
+        <li><strong>Location:</strong> {{ company.location }}</li>
+        {% if company.website %}
+        <li><strong>Website:</strong> <a href="{{ company.website }}" style="color: #667eea;">{{ company.website }}</a></li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="secondary-info">
+    <p><strong>💡 Stay Connected:</strong> Keep following {{ company.name }} to get notified about new job openings, company news, and growth opportunities that match your career interests.</p>
+</div>
+
+<div class="content">
+    <p>Want to explore more companies in {{ company.industry }}? <a href="{{ companies_url }}" style="color: #667eea;">Discover similar companies</a> that might interest you.</p>
+</div>
+
+<div class="content">
+    <p>Stay informed, stay ahead!</p>
+    <p><strong>The {{ site_name }} Insights Team</strong></p>
+</div>
+{% endblock %}

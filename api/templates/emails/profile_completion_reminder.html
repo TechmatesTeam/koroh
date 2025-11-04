@@ -1,0 +1,88 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Complete Your Profile to Unlock AI Features - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Hello {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p>Your {{ site_name }} profile is <strong>{{ completion_percentage }}% complete</strong>. You're so close to unlocking the full power of our AI-driven career platform!</p>
+    
+    <p>Complete your profile to get personalized job recommendations, AI-generated portfolios, and connect with the right professional peer groups.</p>
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🚀 What You'll Unlock</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>AI Job Matching:</strong> Get personalized job recommendations based on your skills</li>
+        <li><strong>Portfolio Generation:</strong> Create stunning professional portfolios automatically</li>
+        <li><strong>Peer Group Suggestions:</strong> Connect with professionals in your field</li>
+        <li><strong>Company Insights:</strong> Discover companies that match your career goals</li>
+        <li><strong>Career Analytics:</strong> Track your professional growth and opportunities</li>
+    </ul>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ profile_url }}" class="cta-button">Complete My Profile</a>
+</div>
+
+{% if missing_items %}
+<div class="content">
+    <p><strong>Quick wins to boost your profile:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        {% for item in missing_items %}
+        <li>{{ item.description }} <em>({{ item.time_estimate }})</em></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">💡 Profile Completion Benefits</h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+        <div style="flex: 1; min-width: 200px;">
+            <p style="margin: 0; color: #4a5568; font-weight: 600;">🎯 Better Job Matches</p>
+            <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">Complete profiles get 3x more relevant job recommendations</p>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <p style="margin: 0; color: #4a5568; font-weight: 600;">🤝 Network Growth</p>
+            <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">Connect with professionals who share your interests</p>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <p style="margin: 0; color: #4a5568; font-weight: 600;">📈 Career Insights</p>
+            <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">Get AI-powered career advice and market insights</p>
+        </div>
+    </div>
+</div>
+
+{% if profile_tips %}
+<div class="content">
+    <p><strong>Pro Tips for a Standout Profile:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        {% for tip in profile_tips %}
+        <li>{{ tip }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🔒 Your Privacy Matters</h3>
+    <p style="margin: 0; color: #4a5568;">
+        Your profile information is secure and private. You control what's visible to others and can adjust your privacy settings at any time. 
+        We use your data only to provide better recommendations and never share it with third parties without your consent.
+    </p>
+</div>
+
+<div class="content">
+    <p><strong>Need help getting started?</strong></p>
+    <p>Our AI assistant is available 24/7 to help you complete your profile and answer any questions. Just click the chat icon when you log in!</p>
+</div>
+
+<div class="content">
+    <p>Take 5 minutes today to complete your profile and unlock your career potential!</p>
+    <p><strong>The {{ site_name }} Success Team</strong></p>
+</div>
+{% endblock %}

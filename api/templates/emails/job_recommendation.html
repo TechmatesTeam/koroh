@@ -1,0 +1,53 @@
+{% extends "emails/base.html" %}
+
+{% block title %}New Job Recommendations - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Hello {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p>We've found {{ job_count }} new job{{ job_count|pluralize }} that match your profile and preferences.</p>
+    
+    <p>Based on your skills in <strong>{{ top_skills|join:", " }}</strong> and your experience in <strong>{{ user.profile.industry }}</strong>, these opportunities might be perfect for you:</p>
+</div>
+
+{% for job in recommended_jobs %}
+<div class="secondary-info" style="margin: 20px 0;">
+    <h3 style="color: #2d3748; margin: 0 0 10px 0;">{{ job.title }}</h3>
+    <p style="margin: 5px 0; color: #4a5568;"><strong>{{ job.company.name }}</strong> • {{ job.location }}</p>
+    {% if job.salary_range %}
+    <p style="margin: 5px 0; color: #4a5568;">💰 {{ job.salary_range }}</p>
+    {% endif %}
+    <p style="margin: 10px 0 0 0; color: #718096;">{{ job.description|truncatewords:25 }}</p>
+</div>
+{% endfor %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ jobs_url }}" class="cta-button">View All Recommendations</a>
+</div>
+
+<div class="secondary-info">
+    <p><strong>💡 Pro Tip:</strong> Complete your profile and upload your CV to get even better job matches. Our AI analyzes your experience to find opportunities that truly fit your career goals.</p>
+</div>
+
+<div class="content">
+    <p><strong>Why these jobs?</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>Match your skill set: {{ match_percentage }}% compatibility</li>
+        <li>Align with your experience level: {{ user.profile.experience_level }}</li>
+        <li>Located in your preferred area: {{ user.profile.location }}</li>
+        <li>From companies in your industry focus</li>
+    </ul>
+</div>
+
+<div class="content">
+    <p>Don't see what you're looking for? <a href="{{ preferences_url }}" style="color: #667eea;">Update your job preferences</a> to get more targeted recommendations.</p>
+</div>
+
+<div class="content">
+    <p>Happy job hunting!</p>
+    <p><strong>The {{ site_name }} Career Team</strong></p>
+</div>
+{% endblock %}

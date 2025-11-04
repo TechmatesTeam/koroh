@@ -1,0 +1,100 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Your AI-Generated Portfolio is Ready! - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Congratulations {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p>Your AI-powered professional portfolio has been successfully generated and is now live! 🎉</p>
+    
+    <p>Our advanced AI analyzed your CV and created a stunning, professional portfolio that showcases your skills, experience, and achievements in the best possible light.</p>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ portfolio_url }}" class="cta-button">View Your Portfolio</a>
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">✨ What's Included in Your Portfolio</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Professional Hero Section:</strong> Eye-catching introduction with your value proposition</li>
+        <li><strong>About Section:</strong> AI-crafted professional summary highlighting your strengths</li>
+        <li><strong>Skills Showcase:</strong> Visual representation of your technical and soft skills</li>
+        <li><strong>Experience Timeline:</strong> Clean, organized display of your work history</li>
+        <li><strong>Education & Certifications:</strong> Academic and professional credentials</li>
+        <li><strong>Contact Information:</strong> Professional contact details and social links</li>
+    </ul>
+</div>
+
+<div class="content">
+    <p><strong>Portfolio Quality Score: {{ quality_score }}%</strong></p>
+    <p>Based on industry standards and best practices, your portfolio scored {{ quality_score }}% for completeness and professional presentation.</p>
+</div>
+
+{% if customization_options %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🎨 Customization Options</h3>
+    <p style="margin: 0 0 10px 0; color: #4a5568;">Make your portfolio uniquely yours:</p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>Choose from {{ template_count }} professional templates</li>
+        <li>Customize colors and fonts to match your personal brand</li>
+        <li>Add or remove sections based on your preferences</li>
+        <li>Upload additional projects and achievements</li>
+        <li>Integrate with your social media profiles</li>
+    </ul>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ customize_url }}" class="cta-button" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">Customize Portfolio</a>
+</div>
+{% endif %}
+
+<div class="content">
+    <p><strong>Share Your Portfolio:</strong></p>
+    <p>Your portfolio is now live at: <br>
+    <a href="{{ portfolio_url }}" style="word-break: break-all; color: #667eea; font-family: monospace; background-color: #f7fafc; padding: 8px; border-radius: 4px; display: inline-block; margin: 5px 0;">{{ portfolio_url }}</a></p>
+    
+    <p>Share this link on:</p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>LinkedIn profile and posts</li>
+        <li>Email signatures</li>
+        <li>Job applications and cover letters</li>
+        <li>Business cards and networking events</li>
+        <li>Social media profiles</li>
+    </ul>
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">📈 Next Steps to Maximize Your Portfolio</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>SEO Optimization:</strong> Your portfolio is already optimized for search engines</li>
+        <li><strong>Analytics:</strong> Track visitors and engagement with built-in analytics</li>
+        <li><strong>Regular Updates:</strong> Keep your portfolio fresh with new achievements</li>
+        <li><strong>Mobile Responsive:</strong> Looks great on all devices automatically</li>
+        <li><strong>Professional Domain:</strong> Consider upgrading to a custom domain</li>
+    </ul>
+</div>
+
+<div class="content">
+    <p><strong>Portfolio Performance Tips:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>Update your portfolio monthly with new projects and skills</li>
+        <li>Add testimonials and recommendations from colleagues</li>
+        <li>Include links to your best work and case studies</li>
+        <li>Keep your contact information current</li>
+        <li>Monitor analytics to see what content resonates most</li>
+    </ul>
+</div>
+
+<div class="secondary-info">
+    <p><strong>Need Help?</strong> Our portfolio experts are here to help you make the most of your new professional presence. Contact us anytime for tips, customization help, or technical support.</p>
+</div>
+
+<div class="content">
+    <p>Your professional journey just got a major upgrade. Go show the world what you're capable of!</p>
+    <p><strong>The {{ site_name }} Portfolio Team</strong></p>
+</div>
+{% endblock %}

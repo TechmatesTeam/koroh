@@ -1,0 +1,77 @@
+{% extends "emails/base.html" %}
+
+{% block title %}You're Invited to Join {{ group.name }} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    Hello {{ user.first_name }}!
+</div>
+
+<div class="content">
+    <p><strong>{{ inviter.get_full_name }}</strong> has invited you to join the <strong>{{ group.name }}</strong> peer group on {{ site_name }}.</p>
+    
+    {% if group.description %}
+    <p><em>"{{ group.description|truncatewords:30 }}"</em></p>
+    {% endif %}
+</div>
+
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">🤝 About This Group</h3>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Industry Focus:</strong> {{ group.industry }}</li>
+        <li><strong>Experience Level:</strong> {{ group.experience_level }}</li>
+        <li><strong>Members:</strong> {{ group.members.count }} professionals</li>
+        <li><strong>Privacy:</strong> {% if group.is_private %}Private Group{% else %}Open Group{% endif %}</li>
+    </ul>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ accept_invitation_url }}" class="cta-button">Accept Invitation</a>
+</div>
+
+<div class="content">
+    <p><strong>What you'll get by joining:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Professional Networking:</strong> Connect with {{ group.members.count }} like-minded professionals</li>
+        <li><strong>Industry Insights:</strong> Share and learn from collective experience</li>
+        <li><strong>Career Opportunities:</strong> Discover jobs and collaborations through your network</li>
+        <li><strong>Knowledge Sharing:</strong> Participate in discussions and Q&A sessions</li>
+        <li><strong>Mentorship:</strong> Find mentors or become one for others</li>
+    </ul>
+</div>
+
+{% if recent_posts %}
+<div class="secondary-info">
+    <h3 style="color: #2d3748; margin: 0 0 15px 0;">💬 Recent Group Activity</h3>
+    {% for post in recent_posts %}
+    <div style="margin: 10px 0; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+        <p style="margin: 0; color: #4a5568; font-weight: 600;">{{ post.title }}</p>
+        <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">by {{ post.author.get_full_name }} • {{ post.created_at|timesince }} ago</p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="content">
+    <p><strong>Group Guidelines:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>Keep discussions professional and respectful</li>
+        <li>Share valuable insights and experiences</li>
+        <li>Help fellow members when possible</li>
+        <li>No spam or self-promotion without context</li>
+    </ul>
+</div>
+
+<div class="secondary-info">
+    <p><strong>Not interested?</strong> You can <a href="{{ decline_invitation_url }}" style="color: #667eea;">decline this invitation</a> or simply ignore this email. {{ inviter.get_full_name }} won't be notified if you choose not to join.</p>
+</div>
+
+<div class="content">
+    <p>If you have any questions about the group, feel free to reach out to {{ inviter.get_full_name }} or our support team.</p>
+</div>
+
+<div class="content">
+    <p>Looking forward to seeing you in the group!</p>
+    <p><strong>The {{ site_name }} Community Team</strong></p>
+</div>
+{% endblock %}
