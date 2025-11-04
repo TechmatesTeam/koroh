@@ -1,239 +1,339 @@
 """
-Health check endpoints for production deployment.
-
-Requirements: 4.1, 4.2, 7.1, 7.2
+Production health check endpoints for Koroh platform.
+Provides comprehensive health monitoring for all system components.
 """
 
-import logging
+import json
 import time
+from datetime import datetime, timedelta
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.cache import never_cache
+from django.conf import settings
 from django.db import connection
 from django.core.cache import cache
-from django.conf import settings
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework import status
-
-logger = logging.getLogger(__name__)
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+import redis
+import requests
+from celery import current_app as celery_app
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-@never_cache
-def health_check(request):
-    """
-    Basic health check endpoint for load balancers.
-    Returns 200 if the service is running.
-    """
-    return Response({
-        'status': 'healthy',
-        'timestamp': time.time(),
-        'service': 'koroh-api'
-    }, status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-@never_cache
-def readiness_check(request):
-    """
-    Readiness check endpoint that validates all dependencies.
-    Returns 200 only if all required services are available.
-    """
-    checks = {
-        'database': False,
-        'cache': False,
-        'overall': False
-    }
-    
-    errors = []
-    
-    # Database check
+def check_database():
+    """Check database connectivity and performance."""
     try:
+        start_time = time.time()
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-            checks['database'] = True
+            cursor.fetchone()
+        response_time = (time.time() - start_time) * 1000
+        
+        return {
+            'status': 'healthy',
+            'response_time_ms': round(response_time, 2),
+            'details': 'Database connection successful'
+        }
     except Exception as e:
-        errors.append(f"Database error: {str(e)}")
-        logger.error(f"Database health check failed: {e}")
-    
-    # Cache check
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'details': 'Database connection failed'
+        }
+
+
+def check_redis():
+    """Check Redis connectivity and performance."""
     try:
-        cache_key = 'health_check_test'
-        cache.set(cache_key, 'test_value', 10)
-        cached_value = cache.get(cache_key)
-        if cached_value == 'test_value':
-            checks['cache'] = True
-            cache.delete(cache_key)
+        start_time = time.time()
+        cache.set('health_check', 'test', 10)
+        result = cache.get('health_check')
+        response_time = (time.time() - start_time) * 1000
+        
+        if result == 'test':
+            return {
+                'status': 'healthy',
+                'response_time_ms': round(response_time, 2),
+                'details': 'Redis connection successful'
+            }
         else:
-            errors.append("Cache read/write test failed")
+            return {
+                'status': 'unhealthy',
+                'details': 'Redis read/write test failed'
+            }
     except Exception as e:
-        errors.append(f"Cache error: {str(e)}")
-        logger.error(f"Cache health check failed: {e}")
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'details': 'Redis connection failed'
+        }
+
+
+def check_celery():
+    """Check Celery worker status."""
+    try:
+        # Get active workers
+        inspect = celery_app.control.inspect()
+        active_workers = inspect.active()
+        
+        if active_workers:
+            worker_count = len(active_workers)
+            return {
+                'status': 'healthy',
+                'worker_count': worker_count,
+                'workers': list(active_workers.keys()),
+                'details': f'{worker_count} Celery workers active'
+            }
+        else:
+            return {
+                'status': 'unhealthy',
+                'worker_count': 0,
+                'details': 'No Celery workers active'
+            }
+    except Exception as e:
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'details': 'Celery inspection failed'
+        }
+
+
+def check_meilisearch():
+    """Check MeiliSearch connectivity."""
+    try:
+        meilisearch_url = getattr(settings, 'MEILISEARCH_URL', None)
+        if not meilisearch_url:
+            return {
+                'status': 'disabled',
+                'details': 'MeiliSearch not configured'
+            }
+        
+        start_time = time.time()
+        response = requests.get(f"{meilisearch_url}/health", timeout=5)
+        response_time = (time.time() - start_time) * 1000
+        
+        if response.status_code == 200:
+            return {
+                'status': 'healthy',
+                'response_time_ms': round(response_time, 2),
+                'details': 'MeiliSearch connection successful'
+            }
+        else:
+            return {
+                'status': 'unhealthy',
+                'status_code': response.status_code,
+                'details': 'MeiliSearch health check failed'
+            }
+    except Exception as e:
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'details': 'MeiliSearch connection failed'
+        }
+
+
+def check_aws_bedrock():
+    """Check AWS Bedrock connectivity."""
+    try:
+        # Import here to avoid issues if boto3 is not available
+        import boto3
+        from botocore.exceptions import ClientError, NoCredentialsError
+        
+        # Create Bedrock client
+        bedrock = boto3.client(
+            'bedrock',
+            region_name=getattr(settings, 'AWS_BEDROCK_REGION', 'us-east-1')
+        )
+        
+        start_time = time.time()
+        # List foundation models as a connectivity test
+        response = bedrock.list_foundation_models()
+        response_time = (time.time() - start_time) * 1000
+        
+        model_count = len(response.get('modelSummaries', []))
+        
+        return {
+            'status': 'healthy',
+            'response_time_ms': round(response_time, 2),
+            'model_count': model_count,
+            'details': 'AWS Bedrock connection successful'
+        }
+    except NoCredentialsError:
+        return {
+            'status': 'unhealthy',
+            'error': 'AWS credentials not configured',
+            'details': 'AWS Bedrock credentials missing'
+        }
+    except ClientError as e:
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'details': 'AWS Bedrock client error'
+        }
+    except Exception as e:
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'details': 'AWS Bedrock connection failed'
+        }
+
+
+def get_system_info():
+    """Get system information."""
+    return {
+        'timestamp': datetime.utcnow().isoformat(),
+        'version': getattr(settings, 'VERSION', '1.0.0'),
+        'environment': getattr(settings, 'ENVIRONMENT', 'production'),
+        'debug': settings.DEBUG,
+        'allowed_hosts': settings.ALLOWED_HOSTS,
+    }
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def health_check(request):
+    """
+    Comprehensive health check endpoint.
+    Returns detailed status of all system components.
+    """
+    start_time = time.time()
     
-    # Overall status
-    checks['overall'] = all([checks['database'], checks['cache']])
+    # Perform all health checks
+    checks = {
+        'database': check_database(),
+        'redis': check_redis(),
+        'celery': check_celery(),
+        'meilisearch': check_meilisearch(),
+        'aws_bedrock': check_aws_bedrock(),
+    }
+    
+    # Determine overall status
+    overall_status = 'healthy'
+    unhealthy_services = []
+    
+    for service, check in checks.items():
+        if check['status'] == 'unhealthy':
+            overall_status = 'unhealthy'
+            unhealthy_services.append(service)
+        elif check['status'] == 'degraded' and overall_status == 'healthy':
+            overall_status = 'degraded'
+    
+    # Calculate total response time
+    total_response_time = (time.time() - start_time) * 1000
+    
+    # Build response
+    response_data = {
+        'status': overall_status,
+        'timestamp': datetime.utcnow().isoformat(),
+        'response_time_ms': round(total_response_time, 2),
+        'system': get_system_info(),
+        'services': checks,
+    }
+    
+    if unhealthy_services:
+        response_data['unhealthy_services'] = unhealthy_services
+    
+    # Set appropriate HTTP status code
+    status_code = 200 if overall_status == 'healthy' else 503
+    
+    return JsonResponse(response_data, status=status_code)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def readiness_check(request):
+    """
+    Kubernetes-style readiness probe.
+    Returns 200 if the service is ready to receive traffic.
+    """
+    # Check critical services only
+    critical_checks = {
+        'database': check_database(),
+        'redis': check_redis(),
+    }
+    
+    # Service is ready if critical services are healthy
+    ready = all(check['status'] == 'healthy' for check in critical_checks.values())
     
     response_data = {
-        'status': 'ready' if checks['overall'] else 'not_ready',
-        'checks': checks,
-        'timestamp': time.time(),
-        'service': 'koroh-api'
+        'ready': ready,
+        'timestamp': datetime.utcnow().isoformat(),
+        'critical_services': critical_checks,
     }
     
-    if errors:
-        response_data['errors'] = errors
-    
-    response_status = status.HTTP_200_OK if checks['overall'] else status.HTTP_503_SERVICE_UNAVAILABLE
-    
-    return Response(response_data, status=response_status)
+    status_code = 200 if ready else 503
+    return JsonResponse(response_data, status=status_code)
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-@never_cache
+@csrf_exempt
+@require_http_methods(["GET"])
 def liveness_check(request):
     """
-    Liveness check endpoint for Kubernetes.
-    Returns 200 if the application is alive and can handle requests.
+    Kubernetes-style liveness probe.
+    Returns 200 if the service is alive and should not be restarted.
     """
-    try:
-        # Basic application liveness test
-        # Check if we can import core modules
-        from django.contrib.auth.models import User
-        from profiles.models import Profile
-        
-        return Response({
-            'status': 'alive',
-            'timestamp': time.time(),
-            'service': 'koroh-api',
-            'version': getattr(settings, 'VERSION', '1.0.0')
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        logger.error(f"Liveness check failed: {e}")
-        return Response({
-            'status': 'dead',
-            'error': str(e),
-            'timestamp': time.time(),
-            'service': 'koroh-api'
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-@never_cache
-def detailed_status(request):
-    """
-    Detailed status endpoint for monitoring and debugging.
-    Provides comprehensive system status information.
-    """
-    status_info = {
-        'service': 'koroh-api',
-        'timestamp': time.time(),
-        'version': getattr(settings, 'VERSION', '1.0.0'),
-        'environment': 'production' if not settings.DEBUG else 'development',
-        'checks': {}
+    # Basic liveness check - just return success if Django is responding
+    response_data = {
+        'alive': True,
+        'timestamp': datetime.utcnow().isoformat(),
+        'uptime_seconds': time.time() - getattr(settings, 'START_TIME', time.time()),
     }
     
-    # Database status
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT version()")
-            db_version = cursor.fetchone()[0]
-            cursor.execute("SELECT COUNT(*) FROM django_migrations")
-            migration_count = cursor.fetchone()[0]
-            
-        status_info['checks']['database'] = {
-            'status': 'healthy',
-            'version': db_version,
-            'migrations': migration_count
-        }
-    except Exception as e:
-        status_info['checks']['database'] = {
-            'status': 'unhealthy',
-            'error': str(e)
-        }
-    
-    # Cache status
-    try:
-        cache_key = 'detailed_status_test'
-        test_start = time.time()
-        cache.set(cache_key, 'test_value', 10)
-        cached_value = cache.get(cache_key)
-        test_duration = time.time() - test_start
-        cache.delete(cache_key)
-        
-        status_info['checks']['cache'] = {
-            'status': 'healthy' if cached_value == 'test_value' else 'unhealthy',
-            'response_time_ms': round(test_duration * 1000, 2)
-        }
-    except Exception as e:
-        status_info['checks']['cache'] = {
-            'status': 'unhealthy',
-            'error': str(e)
-        }
-    
-    # AI Services status (basic check)
-    try:
-        from koroh_platform.utils.aws_bedrock import BedrockClient
-        bedrock_client = BedrockClient()
-        
-        status_info['checks']['ai_services'] = {
-            'status': 'configured' if bedrock_client else 'not_configured',
-            'available': bedrock_client.is_available() if bedrock_client else False
-        }
-    except Exception as e:
-        status_info['checks']['ai_services'] = {
-            'status': 'error',
-            'error': str(e)
-        }
-    
-    # Celery status (if available)
-    try:
-        from celery import current_app
-        inspect = current_app.control.inspect()
-        active_tasks = inspect.active()
-        
-        status_info['checks']['celery'] = {
-            'status': 'healthy' if active_tasks is not None else 'unhealthy',
-            'workers': list(active_tasks.keys()) if active_tasks else []
-        }
-    except Exception as e:
-        status_info['checks']['celery'] = {
-            'status': 'unavailable',
-            'error': str(e)
-        }
-    
-    # Overall status
-    healthy_checks = sum(1 for check in status_info['checks'].values() 
-                        if check.get('status') in ['healthy', 'configured'])
-    total_checks = len(status_info['checks'])
-    
-    status_info['overall'] = {
-        'status': 'healthy' if healthy_checks >= total_checks * 0.75 else 'degraded',
-        'healthy_checks': healthy_checks,
-        'total_checks': total_checks
-    }
-    
-    response_status = status.HTTP_200_OK if status_info['overall']['status'] == 'healthy' else status.HTTP_206_PARTIAL_CONTENT
-    
-    return Response(status_info, status=response_status)
+    return JsonResponse(response_data, status=200)
 
 
+@csrf_exempt
 @require_http_methods(["GET"])
-@never_cache
 def metrics_endpoint(request):
     """
-    Prometheus metrics endpoint.
+    Prometheus-compatible metrics endpoint.
+    Returns basic application metrics.
     """
     try:
-        from django_prometheus.exports import ExportToDjangoView
-        return ExportToDjangoView(request)
-    except ImportError:
+        # Get database connection count
+        db_connections = len(connection.queries) if settings.DEBUG else 0
+        
+        # Get cache stats
+        cache_stats = cache.get_stats() if hasattr(cache, 'get_stats') else {}
+        
+        # Get Celery stats
+        celery_stats = {}
+        try:
+            inspect = celery_app.control.inspect()
+            active_workers = inspect.active()
+            celery_stats = {
+                'active_workers': len(active_workers) if active_workers else 0,
+                'active_tasks': sum(len(tasks) for tasks in active_workers.values()) if active_workers else 0,
+            }
+        except:
+            pass
+        
+        metrics = {
+            'koroh_app_info': {
+                'version': getattr(settings, 'VERSION', '1.0.0'),
+                'environment': getattr(settings, 'ENVIRONMENT', 'production'),
+            },
+            'koroh_db_connections_total': db_connections,
+            'koroh_cache_hits_total': cache_stats.get('hits', 0),
+            'koroh_cache_misses_total': cache_stats.get('misses', 0),
+            'koroh_celery_workers_active': celery_stats.get('active_workers', 0),
+            'koroh_celery_tasks_active': celery_stats.get('active_tasks', 0),
+        }
+        
+        # Format as Prometheus metrics
+        prometheus_output = []
+        for metric_name, value in metrics.items():
+            if isinstance(value, dict):
+                # Handle info metrics
+                labels = ','.join([f'{k}="{v}"' for k, v in value.items()])
+                prometheus_output.append(f'{metric_name}{{{labels}}} 1')
+            else:
+                prometheus_output.append(f'{metric_name} {value}')
+        
         return JsonResponse({
-            'error': 'Prometheus metrics not available'
-        }, status=503)
+            'metrics': metrics,
+            'prometheus_format': '\n'.join(prometheus_output)
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }, status=500)
