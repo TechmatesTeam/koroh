@@ -3,6 +3,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ChatButton } from "@/components/ai-chat/chat-button";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { SmartPageTransition } from "@/components/ui/smart-page-transition";
+import { AppInitializer } from "@/components/ui/app-initializer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,11 +25,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="font-sans antialiased bg-gray-50 text-gray-900">
-        <Providers>
-          {children}
-          <ChatButton />
-        </Providers>
+      <body className="font-sans antialiased bg-white text-gray-900">
+        <ErrorBoundary>
+          <AppInitializer>
+            <Providers>
+              <SmartPageTransition>
+                {children}
+              </SmartPageTransition>
+              <ChatButton />
+            </Providers>
+          </AppInitializer>
+        </ErrorBoundary>
       </body>
     </html>
   );

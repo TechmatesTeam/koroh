@@ -11,8 +11,12 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    // Log error to monitoring service
-    console.error('Application error:', error);
+    // Log error using our error handler
+    if (typeof window !== 'undefined') {
+      import('@/lib/error-handler').then(({ logError }) => {
+        logError(error, 'Global Error Page');
+      });
+    }
   }, [error]);
 
   return (

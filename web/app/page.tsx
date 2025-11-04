@@ -1,33 +1,71 @@
+'use client';
+
 import Link from 'next/link';
+import { NavLink } from '@/components/ui/nav-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PublicNavigation } from '@/components/layout/public-navigation';
 import { PublicFooter } from '@/components/layout/public-footer';
 import { cssClasses } from '@/lib/design-system';
+import { useScrollAnimation, useStaggeredScrollAnimation } from '@/lib/hooks/use-scroll-animation';
+import { motion, isMotionAvailable } from '@/lib/utils/motion';
 
 export default function Home() {
+  const heroAnimation = useScrollAnimation({ threshold: 0.2 });
+  const jobsAnimation = useScrollAnimation({ threshold: 0.1 });
+  const companiesAnimation = useScrollAnimation({ threshold: 0.1 });
+  const networkingAnimation = useStaggeredScrollAnimation(3, { threshold: 0.1 });
+  const ctaAnimation = useScrollAnimation({ threshold: 0.2 });
+
   return (
     <div className="min-h-screen bg-white">
       <PublicNavigation currentPage="home" />
 
       {/* Hero Section with Job Search */}
-      <section className="bg-gradient-to-br from-teal-50 to-blue-50 py-20">
+      <section ref={heroAnimation.ref} className="bg-gradient-to-br from-teal-50 to-blue-50 py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 50 }}
+            animate={heroAnimation.isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          >
+            <motion.h1 
+              className="text-4xl md:text-5xl font-bold text-gray-900 mb-6"
+              initial={{ opacity: 0, y: 30 }}
+              animate={heroAnimation.isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+            >
               Your Professional Network
-              <span className="text-teal-600 block">Powered by AI</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              <motion.span 
+                className="text-teal-600 block"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={heroAnimation.isVisible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.6, delay: 0.5, ease: 'easeOut' }}
+              >
+                Powered by AI
+              </motion.span>
+            </motion.h1>
+            <motion.p 
+              className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={heroAnimation.isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+              transition={{ duration: 0.6, delay: 0.4, ease: 'easeOut' }}
+            >
               Connect with professionals, discover opportunities, and accelerate your career 
               with intelligent recommendations. Join millions building their future.
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           {/* Job Search Bar */}
-          <div className="max-w-4xl mx-auto mb-16">
-            <Card className="p-6 shadow-lg">
+          <motion.div 
+            className="max-w-4xl mx-auto mb-16"
+            initial={{ opacity: 0, y: 40 }}
+            animate={heroAnimation.isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+            transition={{ duration: 0.6, delay: 0.6, ease: 'easeOut' }}
+          >
+            <Card className="p-6 shadow-lg hover-lift" animated={true} hoverEffect="glow">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
                   <Input 
@@ -41,7 +79,7 @@ export default function Home() {
                     className="h-12 text-lg"
                   />
                 </div>
-                <Button size="lg" className={`${cssClasses.button.primary} h-12 px-8`}>
+                <Button size="lg" className={`${cssClasses.button.primary} h-12 px-8`} animated={true}>
                   Search Jobs
                 </Button>
               </div>
@@ -53,10 +91,15 @@ export default function Home() {
                 <button className={`text-sm ${cssClasses.text.accent} hover:underline`}>UX Designer</button>
               </div>
             </Card>
-          </div>
+          </motion.div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <motion.div 
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={heroAnimation.isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+            transition={{ duration: 0.6, delay: 0.8, ease: 'easeOut' }}
+          >
             <div>
               <div className="text-3xl font-bold text-teal-600">10M+</div>
               <div className="text-gray-600">Professionals</div>
@@ -73,14 +116,19 @@ export default function Home() {
               <div className="text-3xl font-bold text-teal-600">1M+</div>
               <div className="text-gray-600">Connections Made</div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Job Discovery Section */}
-      <section id="jobs" className="py-20 bg-white">
+      <section ref={jobsAnimation.ref} id="jobs" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 40 }}
+            animate={jobsAnimation.isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Discover Your Next Opportunity
             </h2>
@@ -88,10 +136,15 @@ export default function Home() {
               AI-powered job matching connects you with roles that fit your skills, 
               experience, and career aspirations.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="hover:shadow-lg transition-shadow">
+          <motion.div 
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+            initial={{ opacity: 0 }}
+            animate={jobsAnimation.isVisible ? { opacity: 1 } : { opacity: 0 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
+          >
+            <Card className="hover:shadow-lg transition-shadow" animated={true} hoverEffect="lift">
               <CardHeader>
                 <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +159,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow">
+            <Card className="hover:shadow-lg transition-shadow" animated={true} hoverEffect="lift">
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,7 +174,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow">
+            <Card className="hover:shadow-lg transition-shadow" animated={true} hoverEffect="lift">
               <CardHeader>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,7 +188,7 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
             </Card>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -299,11 +352,11 @@ export default function Home() {
             website in minutes. Stand out from the crowd with personalized content.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register">
-              <Button size="lg" className="bg-white text-teal-600 hover:bg-gray-100 w-full sm:w-auto font-medium">
+            <NavLink href="/auth/register">
+              <Button size="lg" className="bg-white text-teal-600 hover:bg-gray-100 w-full sm:w-auto font-medium" type="button">
                 Get Started Free
               </Button>
-            </Link>
+            </NavLink>
             <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-teal-600 w-full sm:w-auto font-medium">
               See Example Portfolio
             </Button>
