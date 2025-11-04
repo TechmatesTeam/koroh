@@ -24,26 +24,30 @@ app.autodiscover_tasks()
 
 # Celery beat schedule for periodic tasks
 app.conf.beat_schedule = {
-    # AI and recommendation tasks
-    'update-job-recommendations': {
-        'task': 'koroh_platform.tasks.update_job_recommendations',
-        'schedule': 3600.0,  # Run every hour
-    },
-    'update-peer-group-recommendations': {
-        'task': 'koroh_platform.tasks.update_peer_group_recommendations',
+    # Real-time data update tasks
+    'update-all-user-recommendations': {
+        'task': 'koroh_platform.tasks.update_all_user_recommendations',
         'schedule': 7200.0,  # Run every 2 hours
     },
-    'send-weekly-job-digest': {
-        'task': 'koroh_platform.tasks.send_weekly_job_digest',
-        'schedule': 604800.0,  # Run weekly (7 days)
+    'update-peer-group-activity-scores': {
+        'task': 'koroh_platform.tasks.update_peer_group_activity_scores',
+        'schedule': 3600.0,  # Run every hour
     },
-    'cleanup-ai-processing-data': {
-        'task': 'koroh_platform.tasks.cleanup_ai_processing_data',
+    'update-company-insights': {
+        'task': 'koroh_platform.tasks.update_company_insights',
         'schedule': 86400.0,  # Run daily
     },
-    'monitor-ai-service-health': {
-        'task': 'koroh_platform.tasks.monitor_ai_service_health',
-        'schedule': 900.0,  # Run every 15 minutes
+    'send-weekly-digest-emails': {
+        'task': 'koroh_platform.tasks.send_weekly_digest_emails',
+        'schedule': 604800.0,  # Run weekly (7 days)
+    },
+    'cleanup-expired-data': {
+        'task': 'koroh_platform.tasks.cleanup_expired_data',
+        'schedule': 86400.0,  # Run daily
+    },
+    'run-periodic-updates': {
+        'task': 'koroh_platform.tasks.run_periodic_updates',
+        'schedule': 3600.0,  # Run every hour
     },
     
     # Authentication and user management tasks
@@ -88,7 +92,13 @@ app.conf.update(
     
     # Task routing
     task_routes={
-        'koroh_platform.tasks.*': {'queue': 'ai_processing'},
+        'koroh_platform.tasks.update_all_user_recommendations': {'queue': 'realtime_updates'},
+        'koroh_platform.tasks.update_user_job_recommendations': {'queue': 'realtime_updates'},
+        'koroh_platform.tasks.refresh_user_dashboard_data': {'queue': 'realtime_updates'},
+        'koroh_platform.tasks.notify_company_followers_new_job': {'queue': 'notifications'},
+        'koroh_platform.tasks.process_cv_analysis_completion': {'queue': 'ai_processing'},
+        'koroh_platform.tasks.process_portfolio_generation_completion': {'queue': 'ai_processing'},
+        'koroh_platform.tasks.*': {'queue': 'background_tasks'},
         'authentication.tasks.*': {'queue': 'user_management'},
         'profiles.tasks.*': {'queue': 'file_processing'},
         'companies.tasks.*': {'queue': 'notifications'},
@@ -134,10 +144,20 @@ app.conf.update(
             'time_limit': 900,  # 15 minutes for batch processing
             'soft_time_limit': 840,
         },
-        'koroh_platform.tasks.update_peer_group_recommendations': {
-            'rate_limit': '5/m',
-            'time_limit': 900,  # 15 minutes for batch processing
-            'soft_time_limit': 840,
+        'koroh_platform.tasks.update_all_user_recommendations': {
+            'rate_limit': '1/h',  # Once per hour
+            'time_limit': 1800,  # 30 minutes for batch processing
+            'soft_time_limit': 1740,
+        },
+        'koroh_platform.tasks.update_user_job_recommendations': {
+            'rate_limit': '30/m',  # 30 users per minute
+            'time_limit': 300,  # 5 minutes per user
+            'soft_time_limit': 240,
+        },
+        'koroh_platform.tasks.refresh_user_dashboard_data': {
+            'rate_limit': '60/m',  # 60 refreshes per minute
+            'time_limit': 60,  # 1 minute
+            'soft_time_limit': 50,
         },
     }
 )
