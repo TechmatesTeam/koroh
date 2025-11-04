@@ -12,9 +12,15 @@ import {
 
 interface CompanyInsightsProps {
   followedCompanies: Company[];
+  insights?: {
+    totalFollowed: number;
+    newJobsThisWeek: number;
+    topIndustries: string[];
+    averageRating: number;
+  };
 }
 
-export function CompanyInsights({ followedCompanies }: CompanyInsightsProps) {
+export function CompanyInsights({ followedCompanies, insights }: CompanyInsightsProps) {
   // Calculate insights from followed companies
   const industryDistribution = followedCompanies.reduce((acc, company) => {
     acc[company.industry] = (acc[company.industry] || 0) + 1;

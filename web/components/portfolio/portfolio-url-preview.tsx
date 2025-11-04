@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Copy, ExternalLink, Globe } from 'lucide-react';
 import { useNotifications } from '@/contexts/notification-context';
+import { useAuth } from '@/contexts/auth-context';
 
 interface PortfolioUrlPreviewProps {
   portfolioName: string;
@@ -17,24 +18,23 @@ export function PortfolioUrlPreview({ portfolioName, onPortfolioNameChange }: Po
   const [currentHost, setCurrentHost] = useState('localhost:3000');
   const [username, setUsername] = useState('username');
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setCurrentHost(window.location.host);
-      
-      // Try to get username from localStorage (mock user data)
-      try {
-        const currentUser = JSON.parse(localStorage.getItem('koroh_current_user') || '{}');
-        if (currentUser.email) {
-          const extractedUsername = currentUser.email.split('@')[0] || 
-                                  `${currentUser.first_name?.toLowerCase()}.${currentUser.last_name?.toLowerCase()}`;
-          setUsername(extractedUsername);
-        }
-      } catch (error) {
-        // Use default username if no user data
-      }
     }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      // Generate username from user data
+      const extractedUsername = user.email?.split('@')[0] || 
+                              `${user.first_name?.toLowerCase()}.${user.last_name?.toLowerCase()}` ||
+                              'username';
+      setUsername(extractedUsername);
+    }
+  }, [user]);
 
   const sanitizePortfolioName = (name: string) => {
     return name

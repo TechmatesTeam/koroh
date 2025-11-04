@@ -8,6 +8,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/contexts/notification-context';
+import { usePeerGroupRealtime } from '@/lib/hooks/use-realtime';
 
 interface GroupActivityFeedProps {
   groupSlug?: string; // If provided, shows activity for specific group
@@ -25,9 +26,117 @@ const GroupActivityFeed: React.FC<GroupActivityFeedProps> = ({
   const [error, setError] = useState<string | null>(null);
   const { addNotification } = useNotifications();
 
+  // Real-time connection for specific group
+  const groupRealtime = usePeerGroupRealtime(groupSlug || '', {
+    autoConnect: !!groupSlug && !showMyFeed,
+    onConnect: () => {
+      console.log(`Connected to peer group ${groupSlug} real-time updates`);
+    }
+  });
+
   useEffect(() => {
     loadActivityFeed();
   }, [groupSlug, showMyFeed]);
+
+  // Handle real-time new posts
+  useEffect(() => {
+    if (groupRealtime.newPosts.length > 0) {
+      // Convert real-time posts to activity items and prepend to activities
+      const newActivities = groupRealtime.newPosts.map(post => ({
+        id: post.id,
+        type: 'post' as const,
+        user: post.author,
+        content: {
+          title: post.title,
+          content: post.content,
+          like_count: post.like_count,
+          comment_count: post.comment_count,
+          post_type: post.post_type
+        },
+        timestamp: post.created_at,
+        group: groupSlug ? { id: '', name: '', slug: groupSlug } : undefined
+      }));
+      
+      setActivities(prev => [...newActivities, ...prev]);
+      groupRealtime.clearNewPosts();
+      
+      // Show notification
+      if (newActivities.length > 0) {
+        addNotification({
+          type: 'info',
+          title: 'New Post',
+          message: `${newActivities[0].user.full_name} posted "${newActivities[0].content.title}"`,
+        });
+      }
+    }
+  }, [groupRealtime.newPosts, groupSlug, addNotification, groupRealtime]);
+
+  // Handle real-time new comments
+  useEffect(() => {
+    if (groupRealtime.newComments.length > 0) {
+      // Convert real-time comments to activity items and prepend to activities
+      const newActivities = groupRealtime.newComments.map(comment => ({
+        id: comment.id,
+        type: 'comment' as const,
+        user: comment.author,
+        content: {
+          comment: comment.content,
+          post_title: comment.post_title,
+          like_count: comment.like_count
+        },
+        timestamp: comment.created_at,
+        group: groupSlug ? { id: '', name: '', slug: groupSlug } : undefined
+      }));
+      
+      setActivities(prev => [...newActivities, ...prev]);
+      groupRealtime.clearNewComments();
+      
+      // Show notification
+      if (newActivities.length > 0) {
+        addNotification({
+          type: 'info',
+          title: 'New Comment',
+          message: `${newActivities[0].user.full_name} commented on "${newActivities[0].content.post_title}"`,
+        });
+      }
+    }
+  }, [groupRealtime.newComments, groupSlug, addNotification, groupRealtime]);
+
+  // Handle real-time new members
+  useEffect(() => {
+    if (groupRealtime.newMembers.length > 0) {
+      // Convert real-time members to activity items and prepend to activities
+      const newActivities = groupRealtime.newMembers.map(member => ({
+        id: `member-${member.id}-${Date.now()}`,
+        type: 'member_joined' as const,
+        user: {
+          id: member.id,
+          email: member.email || '',
+          first_name: member.first_name || member.name?.split(' ')[0] || '',
+          last_name: member.last_name || member.name?.split(' ')[1] || '',
+          full_name: member.name || `${member.first_name || ''} ${member.last_name || ''}`.trim(),
+          profile_picture: member.profile_picture
+        },
+        content: {
+          message: `joined ${member.group_name}`
+        },
+        timestamp: member.joined_at,
+        group: groupSlug ? { id: '', name: member.group_name, slug: groupSlug } : undefined
+      }));
+      
+      setActivities(prev => [...newActivities, ...prev]);
+      groupRealtime.clearNewMembers();
+      
+      // Show notification
+      if (newActivities.length > 0) {
+        addNotification({
+          type: 'success',
+          title: 'New Member',
+          message: `${newActivities[0].user.full_name} joined the group!`,
+        });
+      }
+    }
+  }, [groupRealtime.newMembers, groupSlug, addNotification, groupRealtime]);
 
   const loadActivityFeed = async () => {
     setLoading(true);
