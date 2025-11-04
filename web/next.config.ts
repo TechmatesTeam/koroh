@@ -52,10 +52,13 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: `http://api:8000/api/v1/:path*`,
+        destination: 'http://api:8000/api/v1/:path*/',
       },
     ];
   },
+  
+  // Ensure trailing slashes are preserved
+  trailingSlash: false,
   
   // Image optimization
   images: {
@@ -68,7 +71,7 @@ const nextConfig: NextConfig = {
   
   // Bundle optimization
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
     optimizeCss: true,
     scrollRestoration: true,
   },
