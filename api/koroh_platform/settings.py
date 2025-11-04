@@ -38,7 +38,7 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
 
-# Security Configuration
+# Enhanced Security Configuration
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -46,17 +46,46 @@ SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+# Enhanced SSL/TLS Security
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
 # Session Security
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 3600  # 1 hour
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_SAVE_EVERY_REQUEST = True
 
 # CSRF Protection
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_TRUSTED_ORIGINS = env('DJANGO_CORS_ALLOWED_ORIGINS')
+CSRF_FAILURE_VIEW = 'koroh_platform.views.csrf_failure'
+
+# Additional Security Headers
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+SECURE_PERMISSIONS_POLICY = {
+    'geolocation': [],
+    'microphone': [],
+    'camera': [],
+    'payment': [],
+    'usb': [],
+}
+
+# Content Security Policy
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
+CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
+CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_CONNECT_SRC = ("'self'", "https://api.koroh.dev", "wss://api.koroh.dev")
+CSP_FRAME_ANCESTORS = ("'none'",)
+CSP_BASE_URI = ("'self'",)
+CSP_FORM_ACTION = ("'self'",)
 
 # Application definition
 DJANGO_APPS = [
@@ -88,9 +117,16 @@ LOCAL_APPS = [
     'peer_groups',
     'ai_chat',
 ]
+
+# Add channels for WebSocket support
+THIRD_PARTY_APPS.append('channels')
+
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
+    'koroh_platform.security.SecurityValidationMiddleware',
+    'koroh_platform.security.AuthenticationSecurityMiddleware',
+    'koroh_platform.security.APISecurityMiddleware',
     'koroh_platform.middleware.SecurityHeadersMiddleware',
     'koroh_platform.middleware.PerformanceMiddleware',
     'koroh_platform.middleware.RateLimitMiddleware',
@@ -129,6 +165,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'koroh_platform.wsgi.application'
+ASGI_APPLICATION = 'koroh_platform.asgi.application'
+
+# Channels Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [env('REDIS_URL', default='redis://localhost:6379/3')],
+            'capacity': 1500,
+            'expiry': 60,
+        },
+    },
+}
 
 # Database Configuration
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -256,6 +305,19 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'login': '10/min',
+        'register': '5/hour',
+        'ai_service': '50/min',
+        'file_upload': '10/hour',
+    },
+    'EXCEPTION_HANDLER': 'koroh_platform.utils.exception_handler.custom_exception_handler',
 }
 
 # JWT Configuration
@@ -322,6 +384,12 @@ AWS_BEDROCK_RETRY_DELAY = env('AWS_BEDROCK_RETRY_DELAY', default=1.0)
 AWS_BEDROCK_ENABLE_LOGGING = env('AWS_BEDROCK_ENABLE_LOGGING', default=True)
 AWS_BEDROCK_LOG_LEVEL = env('AWS_BEDROCK_LOG_LEVEL', default='INFO')
 
+# AI Chat Response Configuration
+AI_CHAT_CONCISE_MODE = env('AI_CHAT_CONCISE_MODE', default=True)
+AI_CHAT_MAX_RESPONSE_WORDS = env('AI_CHAT_MAX_RESPONSE_WORDS', default=50)
+AI_CHAT_MAX_RESPONSE_CHARS = env('AI_CHAT_MAX_RESPONSE_CHARS', default=500)
+AI_CHAT_ENABLE_CONTEXT_OPTIMIZATION = env('AI_CHAT_ENABLE_CONTEXT_OPTIMIZATION', default=True)
+
 # MeiliSearch Configuration
 MEILISEARCH_URL = env('MEILISEARCH_URL', default='http://localhost:7700')
 MEILISEARCH_MASTER_KEY = env('MEILISEARCH_MASTER_KEY', default='')
@@ -344,6 +412,10 @@ EMAIL_USE_SSL = env('EMAIL_USE_SSL', default=False)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = 'noreply@koroh.com'
+
+# Frontend URL for email links
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')
+SUPPORT_EMAIL = env('SUPPORT_EMAIL', default='support@koroh.com')
 
 # File Upload Configuration
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
