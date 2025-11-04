@@ -2,18 +2,26 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
 import { parseApiError, logError } from './error-handler';
 import { mockApi } from './mock-api';
+import { tokenManager } from './token-manager';
 
 // API Configuration
-// In Docker, use the Next.js proxy. Otherwise use explicit URL.
 const getApiBaseUrl = () => {
+  // For client-side requests, always use the Next.js rewrite proxy
+  if (typeof window !== 'undefined') {
+    return '/api/v1'; // Use Next.js rewrite proxy
+  }
+  
+  // For server-side requests, use direct API URL
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
-  // Check if we're in Docker environment - use the Next.js rewrite proxy
+  
+  // Check if we're in Docker environment
   if (process.env.DOCKER_CONTAINER === 'true') {
-    return '/api/v1';
+    return 'http://api:8000/api/v1';
   }
-  // Default to localhost for local development
+  
+  // Default to localhost for local development (server-side)
   return 'http://localhost:8000/api/v1';
 };
 
@@ -31,8 +39,9 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = Cookies.get('access_token');
+  async (config) => {
+    // Get a valid access token (will refresh if needed)
+    const token = await tokenManager.getValidAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -60,26 +69,17 @@ if (!USE_MOCK_API) {
         originalRequest._retry = true;
 
         try {
-          const refreshToken = Cookies.get('refresh_token');
-          if (refreshToken) {
-            const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
-              refresh: refreshToken,
-            });
-
-            const { access } = response.data;
-            Cookies.set('access_token', access, {
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax'
-            });
-
+          // Try to refresh the token
+          const newToken = await tokenManager.refreshAccessToken();
+          
+          if (newToken) {
             // Retry original request with new token
-            originalRequest.headers.Authorization = `Bearer ${access}`;
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return apiClient(originalRequest);
           }
         } catch (refreshError) {
           // Refresh failed, clear tokens and redirect to login
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
+          tokenManager.clearTokens();
           
           // Store current path for redirect after login
           if (typeof window !== 'undefined') {
@@ -100,17 +100,21 @@ export const api = {
   // Auth endpoints
   auth: {
     login: (credentials: { email: string; password: string }) =>
-      USE_MOCK_API ? mockApi.auth.login(credentials) : apiClient.post('/auth/login/', credentials),
+      USE_MOCK_API ? mockApi.auth.login(credentials) : apiClient.post('/auth/login', credentials),
     register: (userData: { email: string; password: string; password_confirm: string; first_name: string; last_name: string }) =>
-      USE_MOCK_API ? mockApi.auth.register(userData) : apiClient.post('/auth/register/', userData),
+      USE_MOCK_API ? mockApi.auth.register(userData) : apiClient.post('/auth/register', userData),
     logout: () =>
       USE_MOCK_API ? mockApi.auth.logout() : apiClient.post('/auth/logout/'),
     refresh: (refreshToken: string) =>
       USE_MOCK_API ? mockApi.auth.refresh(refreshToken) : apiClient.post('/auth/refresh/', { refresh: refreshToken }),
+    verifyEmail: (token: string) =>
+      USE_MOCK_API ? mockApi.auth.verifyEmail(token) : apiClient.post('/auth/verify-email/', { token }),
+    resendVerification: (email: string) =>
+      USE_MOCK_API ? mockApi.auth.resendVerification(email) : apiClient.post('/auth/resend-verification/', { email }),
     requestPasswordReset: (email: string) =>
-      USE_MOCK_API ? mockApi.auth.requestPasswordReset(email) : apiClient.post('/auth/password-reset/', { email }),
+      USE_MOCK_API ? mockApi.auth.requestPasswordReset(email) : apiClient.post('/auth/password/reset/', { email }),
     resetPassword: (token: string, password: string) =>
-      USE_MOCK_API ? mockApi.auth.resetPassword(token, password) : apiClient.post('/auth/password-reset/confirm/', { token, password }),
+      USE_MOCK_API ? mockApi.auth.resetPassword(token, password) : apiClient.post('/auth/password/reset/confirm/', { token, new_password: password, new_password_confirm: password }),
   },
 
   // Profile endpoints
@@ -314,6 +318,30 @@ export const api = {
           ai_response: { id: '5', role: 'assistant', content: 'Here are some job recommendations for you!', created_at: new Date().toISOString() }
         }
       }) : apiClient.post('/ai/job-recommendations/', { session_id: sessionId }),
+    
+    // Context awareness
+    getConversationContext: (sessionId: string) =>
+      USE_MOCK_API ? Promise.resolve({ 
+        data: { 
+          session_id: sessionId,
+          message_count: 5,
+          context: {
+            conversation_stage: 'exploration',
+            active_topics: ['career_advice', 'skill_development'],
+            recent_intents: ['seeking_advice', 'requesting_information'],
+            key_entities: {
+              skills: ['python', 'machine learning'],
+              job_titles: ['developer', 'engineer']
+            },
+            user_goals: ['Career Advancement', 'Skill Improvement'],
+            key_insights: ['User has significant experience'],
+            context_confidence: 0.75,
+            active_features: ['job_search', 'cv_upload'],
+            conversation_summary: 'User is seeking career advice for ML transition',
+            context_version: 3
+          }
+        }
+      }) : apiClient.get(`/ai/sessions/${sessionId}/context/`),
   },
 };
 

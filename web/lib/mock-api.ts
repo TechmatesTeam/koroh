@@ -93,6 +93,14 @@ export const mockApi = {
         throw new Error('Invalid password');
       }
       
+      // Check if user is verified
+      if (!user.is_verified) {
+        const error = new Error('Please verify your email address before logging in.');
+        (error as any).verification_required = true;
+        (error as any).email = user.email;
+        throw error;
+      }
+      
       setCurrentUser(user);
       
       return {
@@ -135,13 +143,16 @@ export const mockApi = {
       
       // Remove password from returned user object
       const { password, ...userWithoutPassword } = newUser;
-      setCurrentUser(userWithoutPassword);
+      
+      // For mock API, simulate email verification requirement
+      console.log(`Verification email sent to ${userData.email}`);
       
       return {
         data: {
-          access: generateToken(),
-          refresh: generateToken(),
+          message: 'Account created successfully. Please check your email to verify your account.',
           user: userWithoutPassword,
+          verification_required: true,
+          email: userData.email,
         },
       };
     },
@@ -227,6 +238,62 @@ export const mockApi = {
           access: generateToken(),
         },
       };
+    },
+
+    async verifyEmail(token: string) {
+      await mockDelay();
+      
+      // For mock API, we'll just mark any user as verified
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No user found for verification');
+      }
+      
+      // Update user verification status
+      const users = getUsers();
+      const userIndex = users.findIndex(u => u.id === currentUser.id);
+      
+      if (userIndex !== -1) {
+        users[userIndex].is_verified = true;
+        saveUsers(users);
+        
+        const updatedUser = users[userIndex];
+        setCurrentUser(updatedUser);
+        
+        return {
+          data: {
+            message: 'Email verified successfully',
+            user: updatedUser,
+            tokens: {
+              access: generateToken(),
+              refresh: generateToken(),
+            },
+          },
+        };
+      }
+      
+      throw new Error('User not found');
+    },
+
+    async resendVerification(email: string) {
+      await mockDelay();
+      
+      const users = getUsers();
+      const user = users.find(u => u.email === email);
+      
+      if (!user) {
+        // Don't reveal if user exists for security
+        return { data: { message: 'If this email is registered, a verification email will be sent.' } };
+      }
+      
+      if (user.is_verified) {
+        return { data: { message: 'This email address is already verified.' } };
+      }
+      
+      // In a real app, you'd send an email here
+      console.log(`Verification email sent to ${email}`);
+      
+      return { data: { message: 'Verification email sent. Please check your inbox.' } };
     },
   },
 

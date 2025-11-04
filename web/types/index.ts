@@ -64,6 +64,7 @@ export interface JobSearchParams {
   job_type?: string;
   salary_min?: number;
   salary_max?: number;
+  remote?: boolean;
   page?: number;
   limit?: number;
 }
@@ -80,6 +81,7 @@ export interface Company {
   logo?: string;
   followers_count: number;
   is_following: boolean;
+  rating?: number;
 }
 
 // Re-export peer group types
