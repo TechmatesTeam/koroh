@@ -14,15 +14,27 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import logout
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+import logging
 
-from .models import User
+from .models import User, EmailVerificationToken, PasswordResetToken
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
     CustomTokenObtainPairSerializer,
     UserProfileSerializer,
     PasswordChangeSerializer,
+    EmailVerificationSerializer,
+    ResendVerificationSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
 )
+from koroh_platform.permissions import (
+    IsSelfOrAdminOnly,
+    IsAnonymousOrAuthenticated,
+    log_permission_denied
+)
+
+logger = logging.getLogger('koroh_platform.security')
 
 
 class UserRegistrationView(generics.CreateAPIView):
@@ -35,30 +47,57 @@ class UserRegistrationView(generics.CreateAPIView):
     
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAnonymousOrAuthenticated]
     
     def create(self, request, *args, **kwargs):
-        """Create a new user account and return tokens."""
+        """Create a new user account and send verification email."""
+        # Log registration attempt
+        client_ip = self.get_client_ip(request)
+        logger.info(f"Registration attempt from IP {client_ip}")
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Create the user
+        # Create the user (not verified by default)
         user = serializer.save()
         
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
+        # Log successful registration
+        logger.info(f"User {user.id} registered successfully from IP {client_ip}")
         
-        # Prepare response data
+        # Create verification token and send email
+        verification_token = EmailVerificationToken.create_for_user(user)
+        
+        # Send verification email synchronously (temporary fix until Celery is working)
+        from .email_templates import send_welcome_email
+        try:
+            email_sent = send_welcome_email(user, str(verification_token.token))
+            if email_sent:
+                logger.info(f"Verification email sent synchronously to {user.email}")
+            else:
+                logger.error(f"Failed to send verification email to {user.email}")
+        except Exception as e:
+            logger.error(f"Error sending verification email to {user.email}: {str(e)}")
+            email_sent = False
+        
+        # Prepare response data (no tokens until verified)
         response_data = {
-            'message': _('Account created successfully'),
+            'message': _('Account created successfully. Please check your email to verify your account.'),
             'user': UserProfileSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
+            'verification_required': True,
+            'email': user.email,
+            'email_sent': email_sent if 'email_sent' in locals() else False
         }
         
         return Response(response_data, status=status.HTTP_201_CREATED)
+    
+    def get_client_ip(self, request):
+        """Get client IP address."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -66,10 +105,51 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     Custom JWT token obtain view.
     
     Extends the default JWT token view to include user profile
-    information in the response.
+    information in the response and check email verification.
     """
     
     serializer_class = CustomTokenObtainPairSerializer
+    
+    def post(self, request, *args, **kwargs):
+        """Override to add email verification check."""
+        # Get client IP for logging
+        client_ip = self.get_client_ip(request)
+        email = request.data.get('email', 'unknown')
+        logger.info(f"Login attempt for {email} from IP {client_ip}")
+        
+        try:
+            # Call parent method to get tokens
+            response = super().post(request, *args, **kwargs)
+            
+            # Check if user is verified
+            if response.status_code == 200:
+                user_data = response.data.get('user', {})
+                if not user_data.get('is_verified', False):
+                    logger.warning(f"Unverified user {user_data.get('id')} attempted login from IP {client_ip}")
+                    return Response({
+                        'error': _('Please verify your email address before logging in.'),
+                        'verification_required': True,
+                        'email': user_data.get('email')
+                    }, status=status.HTTP_403_FORBIDDEN)
+                
+                # Log successful login
+                logger.info(f"User {user_data.get('id')} logged in successfully from IP {client_ip}")
+            
+            return response
+            
+        except Exception as e:
+            # Log failed login attempt
+            logger.warning(f"Failed login attempt for {email} from IP {client_ip}: {str(e)}")
+            raise
+    
+    def get_client_ip(self, request):
+        """Get client IP address."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class UserLoginView(APIView):
@@ -80,32 +160,64 @@ class UserLoginView(APIView):
     and returns detailed user information.
     """
     
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAnonymousOrAuthenticated]
     
     def post(self, request):
         """Authenticate user and return tokens with user data."""
+        # Log login attempt
+        client_ip = self.get_client_ip(request)
+        email = request.data.get('email', 'unknown')
+        logger.info(f"Login attempt for {email} from IP {client_ip}")
+        
         serializer = UserLoginSerializer(
             data=request.data,
             context={'request': request}
         )
-        serializer.is_valid(raise_exception=True)
         
-        user = serializer.validated_data['user']
-        
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        
-        # Prepare response data
-        response_data = {
-            'message': _('Login successful'),
-            'user': UserProfileSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = serializer.validated_data['user']
+            
+            # Check if user is verified
+            if not user.is_verified:
+                logger.warning(f"Unverified user {user.id} attempted login from IP {client_ip}")
+                return Response({
+                    'error': _('Please verify your email address before logging in.'),
+                    'verification_required': True,
+                    'email': user.email
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Log successful login
+            logger.info(f"User {user.id} logged in successfully from IP {client_ip}")
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            
+            # Prepare response data
+            response_data = {
+                'message': _('Login successful'),
+                'user': UserProfileSerializer(user).data,
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }
             }
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            # Log failed login attempt
+            logger.warning(f"Failed login attempt for {email} from IP {client_ip}: {str(e)}")
+            raise
+    
+    def get_client_ip(self, request):
+        """Get client IP address."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class UserLogoutView(APIView):
@@ -147,7 +259,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     """
     
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSelfOrAdminOnly]
     
     def get_object(self):
         """Return the current user's profile."""
@@ -204,7 +316,7 @@ def user_profile_detail(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.AllowAny])
+@permission_classes([IsAnonymousOrAuthenticated])
 def check_email_availability(request):
     """
     Check if an email address is available for registration.
@@ -239,6 +351,11 @@ class UserListView(generics.ListAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAdminUser]
     
+    def list(self, request, *args, **kwargs):
+        """List users with security logging."""
+        logger.info(f"Admin user {request.user.id} accessed user list")
+        return super().list(request, *args, **kwargs)
+    
     def get_queryset(self):
         """Filter users based on query parameters."""
         queryset = super().get_queryset()
@@ -258,3 +375,203 @@ class UserListView(generics.ListAPIView):
             )
         
         return queryset.order_by('-created_at')
+
+
+class EmailVerificationView(APIView):
+    """
+    API view for email verification.
+    
+    Verifies user email address using verification token.
+    """
+    
+    permission_classes = [IsAnonymousOrAuthenticated]
+    
+    def post(self, request):
+        """Verify email address using token."""
+        serializer = EmailVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        token_str = serializer.validated_data['token']
+        
+        try:
+            # Find the verification token
+            verification_token = EmailVerificationToken.objects.get(
+                token=token_str,
+                is_used=False
+            )
+            
+            # Check if token is expired
+            if verification_token.is_expired:
+                return Response({
+                    'error': _('Verification token has expired. Please request a new one.'),
+                    'expired': True
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verify the user
+            user = verification_token.user
+            user.is_verified = True
+            user.save(update_fields=['is_verified'])
+            
+            # Mark token as used
+            verification_token.mark_as_used()
+            
+            # Send account verified email
+            from .tasks import send_account_verified_email_task
+            send_account_verified_email_task.delay(user.id)
+            
+            # Generate JWT tokens for immediate login
+            refresh = RefreshToken.for_user(user)
+            
+            logger.info(f"User {user.id} email verified successfully")
+            
+            return Response({
+                'message': _('Email verified successfully. You can now log in.'),
+                'user': UserProfileSerializer(user).data,
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except EmailVerificationToken.DoesNotExist:
+            return Response({
+                'error': _('Invalid or expired verification token.')
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResendVerificationEmailView(APIView):
+    """
+    API view for resending verification email.
+    
+    Allows users to request a new verification email.
+    """
+    
+    permission_classes = [IsAnonymousOrAuthenticated]
+    
+    def post(self, request):
+        """Resend verification email."""
+        serializer = ResendVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        
+        try:
+            user = User.objects.get(email=email)
+            
+            # Check if user is already verified
+            if user.is_verified:
+                return Response({
+                    'message': _('This email address is already verified.')
+                }, status=status.HTTP_200_OK)
+            
+            # Create new verification token
+            verification_token = EmailVerificationToken.create_for_user(user)
+            
+            # Send verification email
+            from .tasks import send_verification_email_task
+            send_verification_email_task.delay(user.id, str(verification_token.token))
+            
+            logger.info(f"Verification email resent to {email}")
+            
+            return Response({
+                'message': _('Verification email sent. Please check your inbox.')
+            }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            # Don't reveal if email exists for security
+            return Response({
+                'message': _('If this email is registered, a verification email will be sent.')
+            }, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    API view for password reset request.
+    
+    Sends password reset email to user.
+    """
+    
+    permission_classes = [IsAnonymousOrAuthenticated]
+    
+    def post(self, request):
+        """Request password reset."""
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        
+        try:
+            user = User.objects.get(email=email, is_active=True)
+            
+            # Create password reset token
+            reset_token = PasswordResetToken.create_for_user(user)
+            
+            # Send password reset email
+            from .tasks import send_password_reset_email_task
+            send_password_reset_email_task.delay(user.id, str(reset_token.token))
+            
+            logger.info(f"Password reset email sent to {email}")
+            
+        except User.DoesNotExist:
+            # Don't reveal if email exists for security
+            pass
+        
+        # Always return success message for security
+        return Response({
+            'message': _('If this email is registered, a password reset link will be sent.')
+        }, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    API view for password reset confirmation.
+    
+    Resets user password using reset token.
+    """
+    
+    permission_classes = [IsAnonymousOrAuthenticated]
+    
+    def post(self, request):
+        """Reset password using token."""
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        token_str = serializer.validated_data['token']
+        new_password = serializer.validated_data['new_password']
+        
+        try:
+            # Find the reset token
+            reset_token = PasswordResetToken.objects.get(
+                token=token_str,
+                is_used=False
+            )
+            
+            # Check if token is expired
+            if reset_token.is_expired:
+                return Response({
+                    'error': _('Password reset token has expired. Please request a new one.'),
+                    'expired': True
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Reset the password
+            user = reset_token.user
+            user.set_password(new_password)
+            user.save(update_fields=['password'])
+            
+            # Mark token as used
+            reset_token.mark_as_used()
+            
+            # Send password reset success email
+            from .tasks import send_password_reset_success_email_task
+            send_password_reset_success_email_task.delay(user.id)
+            
+            logger.info(f"Password reset successful for user {user.id}")
+            
+            return Response({
+                'message': _('Password reset successful. You can now log in with your new password.')
+            }, status=status.HTTP_200_OK)
+            
+        except PasswordResetToken.DoesNotExist:
+            return Response({
+                'error': _('Invalid or expired password reset token.')
+            }, status=status.HTTP_400_BAD_REQUEST)

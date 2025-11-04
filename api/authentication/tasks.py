@@ -77,54 +77,34 @@ def cleanup_inactive_users():
 
 
 @shared_task(bind=True, max_retries=3)
-def send_welcome_email(self, user_id):
+def send_verification_email_task(self, user_id, verification_token):
     """
-    Background task to send welcome email to new users.
+    Background task to send email verification email to new users.
     
     Args:
-        user_id: ID of the user to send welcome email to
+        user_id: ID of the user to send verification email to
+        verification_token: Email verification token
     """
     try:
         user = User.objects.get(id=user_id)
         
         # Import here to avoid circular imports
-        from django.core.mail import send_mail
-        from django.conf import settings
+        from authentication.email_templates import send_welcome_email
         
-        subject = "Welcome to Koroh Platform!"
-        message = f"""
-        Hi {user.first_name or user.email},
+        # Send professional welcome email with verification
+        success = send_welcome_email(user, verification_token)
         
-        Welcome to Koroh! We're excited to have you join our professional networking platform.
-        
-        Here's what you can do next:
-        1. Complete your profile
-        2. Upload your CV for AI-powered portfolio generation
-        3. Discover job opportunities and companies
-        4. Connect with professional peer groups
-        
-        If you have any questions, feel free to reach out to our support team.
-        
-        Best regards,
-        The Koroh Team
-        """
-        
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False
-        )
-        
-        logger.info(f"Welcome email sent to {user.email}")
-        return {'success': True, 'email_sent': True}
+        if success:
+            logger.info(f"Verification email sent to {user.email}")
+            return {'success': True, 'email_sent': True}
+        else:
+            return {'success': False, 'error': 'Failed to send email'}
         
     except User.DoesNotExist:
         logger.error(f"User with ID {user_id} not found")
         return {'success': False, 'error': 'User not found'}
     except Exception as e:
-        logger.error(f"Failed to send welcome email to user {user_id}: {e}")
+        logger.error(f"Failed to send verification email to user {user_id}: {e}")
         
         # Retry the task
         if self.request.retries < self.max_retries:
@@ -134,7 +114,79 @@ def send_welcome_email(self, user_id):
 
 
 @shared_task(bind=True, max_retries=3)
-def send_password_reset_email(self, user_id, reset_token):
+def send_account_verified_email_task(self, user_id):
+    """
+    Background task to send account verified confirmation email.
+    
+    Args:
+        user_id: ID of the user whose account was verified
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Import here to avoid circular imports
+        from authentication.email_templates import send_account_verified_email
+        
+        # Send account verified email
+        success = send_account_verified_email(user)
+        
+        if success:
+            logger.info(f"Account verified email sent to {user.email}")
+            return {'success': True, 'email_sent': True}
+        else:
+            return {'success': False, 'error': 'Failed to send email'}
+        
+    except User.DoesNotExist:
+        logger.error(f"User with ID {user_id} not found")
+        return {'success': False, 'error': 'User not found'}
+    except Exception as e:
+        logger.error(f"Failed to send account verified email to user {user_id}: {e}")
+        
+        # Retry the task
+        if self.request.retries < self.max_retries:
+            raise self.retry(countdown=60 * (2 ** self.request.retries))
+        
+        return {'success': False, 'error': str(e)}
+
+
+@shared_task(bind=True, max_retries=3)
+def send_password_reset_success_email_task(self, user_id):
+    """
+    Background task to send password reset success email.
+    
+    Args:
+        user_id: ID of the user whose password was reset
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Import here to avoid circular imports
+        from authentication.email_templates import send_password_reset_success_email
+        
+        # Send password reset success email
+        success = send_password_reset_success_email(user)
+        
+        if success:
+            logger.info(f"Password reset success email sent to {user.email}")
+            return {'success': True, 'email_sent': True}
+        else:
+            return {'success': False, 'error': 'Failed to send email'}
+        
+    except User.DoesNotExist:
+        logger.error(f"User with ID {user_id} not found")
+        return {'success': False, 'error': 'User not found'}
+    except Exception as e:
+        logger.error(f"Failed to send password reset success email to user {user_id}: {e}")
+        
+        # Retry the task
+        if self.request.retries < self.max_retries:
+            raise self.retry(countdown=60 * (2 ** self.request.retries))
+        
+        return {'success': False, 'error': str(e)}
+
+
+@shared_task(bind=True, max_retries=3)
+def send_password_reset_email_task(self, user_id, reset_token):
     """
     Background task to send password reset email.
     
@@ -145,33 +197,17 @@ def send_password_reset_email(self, user_id, reset_token):
     try:
         user = User.objects.get(id=user_id)
         
-        from django.core.mail import send_mail
-        from django.conf import settings
+        # Import here to avoid circular imports
+        from authentication.email_templates import send_password_reset_email
         
-        subject = "Password Reset - Koroh Platform"
-        message = f"""
-        Hi {user.first_name or user.email},
+        # Send professional password reset email
+        success = send_password_reset_email(user, reset_token)
         
-        You requested a password reset for your Koroh account.
-        
-        Please use the following token to reset your password: {reset_token}
-        
-        If you didn't request this reset, please ignore this email.
-        
-        Best regards,
-        The Koroh Team
-        """
-        
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False
-        )
-        
-        logger.info(f"Password reset email sent to {user.email}")
-        return {'success': True, 'email_sent': True}
+        if success:
+            logger.info(f"Password reset email sent to {user.email}")
+            return {'success': True, 'email_sent': True}
+        else:
+            return {'success': False, 'error': 'Failed to send email'}
         
     except User.DoesNotExist:
         logger.error(f"User with ID {user_id} not found")
@@ -183,4 +219,33 @@ def send_password_reset_email(self, user_id, reset_token):
         if self.request.retries < self.max_retries:
             raise self.retry(countdown=60 * (2 ** self.request.retries))
         
+        return {'success': False, 'error': str(e)}
+
+@shared_task
+def cleanup_expired_verification_tokens():
+    """
+    Background task to clean up expired verification and reset tokens.
+    
+    This task should be scheduled to run daily to maintain database performance.
+    """
+    try:
+        from authentication.models import EmailVerificationToken, PasswordResetToken
+        
+        # Clean up expired verification tokens
+        verification_count = EmailVerificationToken.cleanup_expired_tokens()
+        
+        # Clean up expired password reset tokens
+        reset_count = PasswordResetToken.cleanup_expired_tokens()
+        
+        result = {
+            'verification_tokens_deleted': verification_count,
+            'reset_tokens_deleted': reset_count,
+            'total_deleted': verification_count + reset_count
+        }
+        
+        logger.info(f"Token cleanup completed: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Token cleanup failed: {e}")
         return {'success': False, 'error': str(e)}

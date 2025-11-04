@@ -10,7 +10,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import User
+from .models import User, EmailVerificationToken, PasswordResetToken
+import uuid
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -273,3 +274,102 @@ class PasswordChangeSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    """
+    Serializer for email verification.
+    
+    Validates verification token format.
+    """
+    
+    token = serializers.UUIDField(
+        required=True,
+        help_text='Email verification token'
+    )
+    
+    def validate_token(self, value):
+        """Validate token format."""
+        if not value:
+            raise serializers.ValidationError('Verification token is required.')
+        return value
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    """
+    Serializer for resending verification email.
+    
+    Validates email address for resending verification.
+    """
+    
+    email = serializers.EmailField(
+        required=True,
+        help_text='Email address to resend verification to'
+    )
+    
+    def validate_email(self, value):
+        """Validate email format."""
+        return value.lower().strip()
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Serializer for password reset request.
+    
+    Validates email address for password reset.
+    """
+    
+    email = serializers.EmailField(
+        required=True,
+        help_text='Email address for password reset'
+    )
+    
+    def validate_email(self, value):
+        """Validate email format."""
+        return value.lower().strip()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Serializer for password reset confirmation.
+    
+    Validates reset token and new password.
+    """
+    
+    token = serializers.UUIDField(
+        required=True,
+        help_text='Password reset token'
+    )
+    new_password = serializers.CharField(
+        required=True,
+        min_length=8,
+        style={'input_type': 'password'},
+        help_text='New password (minimum 8 characters)'
+    )
+    new_password_confirm = serializers.CharField(
+        required=True,
+        style={'input_type': 'password'},
+        help_text='Confirm new password'
+    )
+    
+    def validate_token(self, value):
+        """Validate token format."""
+        if not value:
+            raise serializers.ValidationError('Reset token is required.')
+        return value
+    
+    def validate_new_password(self, value):
+        """Validate new password."""
+        try:
+            validate_password(value)
+        except ValidationError as e:
+            raise serializers.ValidationError(e.messages)
+        return value
+    
+    def validate(self, attrs):
+        """Validate password confirmation."""
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({
+                'new_password_confirm': 'Password confirmation does not match.'
+            })
+        return attrs

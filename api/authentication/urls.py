@@ -19,6 +19,14 @@ urlpatterns = [
     path('login-alt/', views.UserLoginView.as_view(), name='login_alt'),
     path('logout/', views.UserLogoutView.as_view(), name='logout'),
     
+    # Email verification endpoints
+    path('verify-email/', views.EmailVerificationView.as_view(), name='verify_email'),
+    path('resend-verification/', views.ResendVerificationEmailView.as_view(), name='resend_verification'),
+    
+    # Password reset endpoints
+    path('password/reset/', views.PasswordResetRequestView.as_view(), name='password_reset'),
+    path('password/reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    
     # JWT token endpoints
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
