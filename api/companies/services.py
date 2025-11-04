@@ -42,6 +42,10 @@ class CompanyTrackingService:
             follow.notifications_enabled = notifications_enabled
             follow.save(update_fields=['notifications_enabled'])
         
+        # Send real-time notification to user's dashboard
+        if created:
+            self._send_realtime_company_follow_update(user.id, company, 'followed')
+        
         return {
             'followed': True,
             'created': created,
@@ -65,6 +69,10 @@ class CompanyTrackingService:
         try:
             follow = CompanyFollow.objects.get(user=user, company=company)
             follow.delete()
+            
+            # Send real-time notification to user's dashboard
+            self._send_realtime_company_follow_update(user.id, company, 'unfollowed')
+            
             return {
                 'unfollowed': True,
                 'company_name': company.name
@@ -122,6 +130,26 @@ class CompanyTrackingService:
             # User is not following the company, but we can still track the interaction
             # by incrementing the company's view count
             company.increment_view_count()
+    
+    @staticmethod
+    def _send_realtime_company_follow_update(user_id: int, company: Company, action: str) -> None:
+        """Send real-time company follow/unfollow updates to user."""
+        try:
+            from koroh_platform.realtime import send_dashboard_update
+            
+            company_data = {
+                'id': str(company.id),
+                'name': company.name,
+                'logo': company.logo.url if company.logo else None,
+                'industry': company.industry,
+                'action': action,
+                'timestamp': timezone.now().isoformat()
+            }
+            
+            send_dashboard_update(user_id, 'company_update', company_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to send real-time company follow update: {e}")
 
 
 class CompanyInsightService:
@@ -317,6 +345,7 @@ class CompanyNotificationService:
     def notify_followers_of_new_job(company: Company, job) -> Dict[str, Any]:
         """Notify company followers of a new job posting."""
         from jobs.models import Job
+        from authentication.email_templates import send_company_update_email
         
         # Get followers with notifications enabled
         followers = CompanyFollow.objects.filter(
@@ -332,33 +361,23 @@ class CompanyNotificationService:
         
         for follow in followers:
             try:
-                # Send email notification
-                subject = f"New Job at {company.name}: {job.title}"
-                message = f"""
-                Hi {follow.user.get_full_name()},
-                
-                {company.name} has posted a new job that might interest you:
-                
-                Job Title: {job.title}
-                Location: {job.location}
-                Job Type: {job.get_job_type_display()}
-                Experience Level: {job.get_experience_level_display()}
-                
-                View the full job posting and apply at: [Job URL]
-                
-                Best regards,
-                The Koroh Team
-                """
-                
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[follow.user.email],
-                    fail_silently=False
+                # Send professional email notification
+                success = send_company_update_email(
+                    user=follow.user,
+                    company=company,
+                    update_type="new_job",
+                    update_message=f"New job opening: {job.title}",
+                    job=job
                 )
                 
-                notification_count += 1
+                if success:
+                    notification_count += 1
+                    # Send real-time notification to user's dashboard
+                    CompanyNotificationService._send_realtime_job_notification(
+                        follow.user.id, company, job
+                    )
+                else:
+                    failed_notifications.append(follow.user.email)
                 
             except Exception as e:
                 logger.error(f"Failed to send notification to {follow.user.email}: {e}")
@@ -373,6 +392,8 @@ class CompanyNotificationService:
     @staticmethod
     def notify_followers_of_company_update(company: Company, update_type: str, message: str) -> Dict[str, Any]:
         """Notify company followers of general company updates."""
+        from authentication.email_templates import send_company_update_email
+        
         followers = CompanyFollow.objects.filter(
             company=company,
             notifications_enabled=True
@@ -386,29 +407,18 @@ class CompanyNotificationService:
         
         for follow in followers:
             try:
-                subject = f"Update from {company.name}"
-                email_message = f"""
-                Hi {follow.user.get_full_name()},
-                
-                {company.name} has an update for you:
-                
-                {message}
-                
-                Visit the company profile to learn more: [Company URL]
-                
-                Best regards,
-                The Koroh Team
-                """
-                
-                send_mail(
-                    subject=subject,
-                    message=email_message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[follow.user.email],
-                    fail_silently=False
+                # Send professional email notification
+                success = send_company_update_email(
+                    user=follow.user,
+                    company=company,
+                    update_type=update_type,
+                    update_message=message
                 )
                 
-                notification_count += 1
+                if success:
+                    notification_count += 1
+                else:
+                    failed_notifications.append(follow.user.email)
                 
             except Exception as e:
                 logger.error(f"Failed to send notification to {follow.user.email}: {e}")
@@ -423,6 +433,8 @@ class CompanyNotificationService:
     @staticmethod
     def send_weekly_digest(user: User) -> Dict[str, Any]:
         """Send weekly digest of followed companies' activities."""
+        from authentication.email_templates import send_weekly_digest_email
+        
         followed_companies = CompanyTrackingService.get_user_followed_companies(user)
         
         if not followed_companies:
@@ -430,27 +442,39 @@ class CompanyNotificationService:
         
         # Collect activities from the last week
         week_ago = timezone.now() - timedelta(days=7)
-        activities = []
         
+        # Prepare digest data
+        digest_data = {
+            'new_jobs_count': 0,
+            'featured_jobs': [],
+            'company_updates': [],
+            'peer_group_activity': [],
+            'profile_views': 0,  # Would need to be tracked separately
+            'job_applications': 0,  # Would need to be tracked separately
+            'new_connections': 0,  # Would need to be tracked separately
+            'portfolio_views': 0,  # Would need to be tracked separately
+            'recommendations': [],
+            'trending_skills': [],
+            'action_items': []
+        }
+        
+        # Collect company activities
         for company in followed_companies:
             # New jobs
             from jobs.models import Job
             new_jobs = Job.objects.filter(
                 company=company,
                 posted_date__gte=week_ago,
-                is_active=True,
-                status='published'
+                is_active=True
             )
             
             if new_jobs.exists():
-                activities.append({
-                    'company': company.name,
-                    'type': 'new_jobs',
-                    'count': new_jobs.count(),
-                    'details': [{'title': job.title, 'location': job.location} for job in new_jobs[:3]]
-                })
+                digest_data['new_jobs_count'] += new_jobs.count()
+                # Add top 3 jobs to featured jobs
+                for job in new_jobs[:3]:
+                    digest_data['featured_jobs'].append(job)
             
-            # New insights
+            # Company updates (insights)
             new_insights = CompanyInsight.objects.filter(
                 company=company,
                 created_at__gte=week_ago,
@@ -458,57 +482,41 @@ class CompanyNotificationService:
             )
             
             if new_insights.exists():
-                activities.append({
-                    'company': company.name,
-                    'type': 'new_insights',
-                    'count': new_insights.count(),
-                    'details': [{'title': insight.title, 'type': insight.insight_type} for insight in new_insights[:3]]
-                })
+                for insight in new_insights[:2]:  # Top 2 insights per company
+                    digest_data['company_updates'].append({
+                        'company': company,
+                        'update_type': insight.insight_type,
+                        'message': insight.title,
+                        'created_at': insight.created_at
+                    })
         
-        if not activities:
+        # Add some default recommendations if no specific data
+        if not digest_data['company_updates'] and not digest_data['featured_jobs']:
             return {'digest_sent': False, 'message': 'No activities to report'}
         
-        # Send digest email
+        # Add personalized recommendations
+        digest_data['recommendations'] = [
+            "Update your profile with recent achievements",
+            "Apply to jobs that match your skills",
+            "Connect with professionals in your network",
+            "Follow companies in emerging industries"
+        ]
+        
+        # Send professional digest email
         try:
-            subject = "Your Weekly Company Updates - Koroh"
-            message = f"""
-            Hi {user.get_full_name()},
+            success = send_weekly_digest_email(user, digest_data)
             
-            Here's your weekly digest of activities from companies you follow:
-            
-            """
-            
-            for activity in activities:
-                if activity['type'] == 'new_jobs':
-                    message += f"\n{activity['company']} posted {activity['count']} new job(s):\n"
-                    for job in activity['details']:
-                        message += f"  - {job['title']} in {job['location']}\n"
-                elif activity['type'] == 'new_insights':
-                    message += f"\n{activity['company']} has {activity['count']} new insight(s):\n"
-                    for insight in activity['details']:
-                        message += f"  - {insight['title']} ({insight['type']})\n"
-            
-            message += """
-            
-            Visit Koroh to explore these opportunities and updates in detail.
-            
-            Best regards,
-            The Koroh Team
-            """
-            
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False
-            )
-            
-            return {
-                'digest_sent': True,
-                'activities_count': len(activities),
-                'companies_count': len(followed_companies)
-            }
+            if success:
+                return {
+                    'digest_sent': True,
+                    'activities_count': len(digest_data['company_updates']) + len(digest_data['featured_jobs']),
+                    'companies_count': len(followed_companies)
+                }
+            else:
+                return {
+                    'digest_sent': False,
+                    'error': 'Failed to send email'
+                }
             
         except Exception as e:
             logger.error(f"Failed to send weekly digest to {user.email}: {e}")
@@ -516,3 +524,33 @@ class CompanyNotificationService:
                 'digest_sent': False,
                 'error': str(e)
             }
+    
+    @staticmethod
+    def _send_realtime_job_notification(user_id: int, company: Company, job) -> None:
+        """Send real-time job notification to user's dashboard."""
+        try:
+            from koroh_platform.realtime import send_dashboard_update
+            
+            job_data = {
+                'id': str(job.id),
+                'title': job.title,
+                'company': {
+                    'id': str(company.id),
+                    'name': company.name,
+                    'logo': company.logo.url if company.logo else None
+                },
+                'location': job.location,
+                'job_type': job.job_type,
+                'posted_date': job.posted_date.isoformat(),
+                'salary_range': job.salary_range_display,
+                'notification_type': 'new_job_from_followed_company'
+            }
+            
+            send_dashboard_update(user_id, 'company_update', {
+                'type': 'new_job',
+                'job': job_data,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to send real-time job notification: {e}")

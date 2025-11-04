@@ -8,19 +8,29 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import F
+import logging
+
 from jobs.services import CompanySearchService
 from .models import Company, CompanyFollow, CompanyInsight
 from .serializers import (
     CompanyListSerializer, CompanyDetailSerializer, CompanyCreateUpdateSerializer,
     CompanyFollowSerializer, CompanyInsightSerializer, CompanySearchSerializer
 )
+from koroh_platform.permissions import (
+    IsCompanyAdminOrReadOnly,
+    IsOwnerOrReadOnly,
+    IsAnonymousOrAuthenticated,
+    log_permission_denied
+)
+
+logger = logging.getLogger('koroh_platform.security')
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
     """ViewSet for Company model."""
     
     queryset = Company.objects.filter(is_active=True)
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsCompanyAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['industry', 'company_size', 'company_type', 'is_hiring', 'is_verified']
     search_fields = ['name', 'description', 'industry', 'headquarters']
@@ -61,7 +71,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[IsAnonymousOrAuthenticated])
     def search(self, request):
         """Advanced company search."""
         serializer = CompanySearchSerializer(data=request.data)
@@ -235,7 +245,7 @@ class CompanyFollowViewSet(viewsets.ModelViewSet):
     """ViewSet for CompanyFollow model."""
     
     serializer_class = CompanyFollowSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwnerOrReadOnly]
     
     def get_queryset(self):
         """Get user's company follows."""
@@ -266,7 +276,7 @@ class CompanyInsightViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for CompanyInsight model (read-only)."""
     
     serializer_class = CompanyInsightSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAnonymousOrAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['insight_type', 'company', 'is_public']
     ordering_fields = ['created_at', 'confidence_score']
