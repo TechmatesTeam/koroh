@@ -4,8 +4,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from '@/contexts/auth-context';
 import { NotificationProvider } from '@/contexts/notification-context';
+import { LoadingProvider } from '@/contexts/loading-context';
 import { ChatButton } from '@/components/ai-chat';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useUIStore } from '@/lib/stores/ui-store';
+
+function ThemeInitializer() {
+  useEffect(() => {
+    // Initialize theme on client side
+    const savedTheme = localStorage.getItem('koroh-theme') as 'light' | 'dark' | 'system' | null;
+    if (savedTheme) {
+      useUIStore.getState().setTheme(savedTheme);
+    }
+  }, []);
+
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -29,12 +43,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NotificationProvider>
-          {children}
-          <ChatButton />
-        </NotificationProvider>
-      </AuthProvider>
+      <LoadingProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <ThemeInitializer />
+            {children}
+            <ChatButton />
+          </NotificationProvider>
+        </AuthProvider>
+      </LoadingProvider>
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
     </QueryClientProvider>
   );

@@ -5,17 +5,21 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 import { parseApiError, logError, isAuthError } from '@/lib/error-handler';
+import { tokenManager } from '@/lib/token-manager';
+import { resetAllStores } from '@/lib/stores';
 import { User, AuthTokens, LoginCredentials, RegisterData } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
+  login: (credentials: LoginCredentials, userData?: User, tokens?: AuthTokens) => Promise<void>;
+  register: (userData: RegisterData) => Promise<any>;
   logout: () => void;
   requestPasswordReset: (email: string) => Promise<{ message: string; resetToken?: string }>;
   resetPassword: (token: string, password: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<{ user: User; tokens: AuthTokens }>;
+  resendVerification: (email: string) => Promise<{ message: string }>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
@@ -44,12 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(JSON.parse(currentUser));
           }
         } else {
-          // For real API, check with server
-          const token = Cookies.get('access_token');
-          
-          if (token) {
-            const response = await api.profiles.getMe();
-            setUser(response.data.user);
+          // For real API, check if we have valid tokens
+          if (tokenManager.isAuthenticated()) {
+            try {
+              const response = await api.profiles.getMe();
+              setUser(response.data.user);
+            } catch (error) {
+              // If profile fetch fails, clear tokens
+              tokenManager.clearTokens();
+            }
           }
         }
       } catch (error) {
@@ -57,8 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // If it's an auth error, clear tokens
         if (isAuthError(error)) {
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
+          tokenManager.clearTokens();
         }
       } finally {
         setLoading(false);
@@ -68,7 +74,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials, userData?: User, tokens?: AuthTokens) => {
+    // If userData and tokens are provided, use them directly (for post-verification login)
+    if (userData && tokens) {
+      tokenManager.setTokens(tokens);
+      setUser(userData);
+      
+      setTimeout(() => {
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+        if (redirectPath) {
+          sessionStorage.removeItem('redirectAfterLogin');
+          router.push(redirectPath);
+        } else {
+          router.push('/dashboard');
+        }
+      }, 100);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -95,33 +117,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Invalid response format from server');
       }
 
-      // Store tokens securely
-      Cookies.set('access_token', access, { 
-        expires: 1, // 1 day
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      
-      if (refresh) {
-        Cookies.set('refresh_token', refresh, { 
-          expires: 7, // 7 days
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax'
-        });
-      }
+      // Store tokens using token manager
+      tokenManager.setTokens({ access, refresh });
 
       setUser(userData);
       
-      // Check for stored redirect path
-      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
-      if (redirectPath) {
-        sessionStorage.removeItem('redirectAfterLogin');
-        router.push(redirectPath);
-      } else {
-        router.push('/dashboard');
-      }
+      // Use requestAnimationFrame for smoother transitions
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+          if (redirectPath) {
+            sessionStorage.removeItem('redirectAfterLogin');
+            router.replace(redirectPath);
+          } else {
+            router.replace('/dashboard');
+          }
+        }, 50);
+      });
     } catch (error: any) {
       const parsedError = parseApiError(error);
+      
+      // Check if it's a verification required error
+      if (error.response?.status === 403 && error.response?.data?.verification_required) {
+        const verificationError = new Error(error.response.data.error || 'Email verification required');
+        (verificationError as any).verification_required = true;
+        (verificationError as any).email = error.response.data.email;
+        throw verificationError;
+      }
+      
       setError(parsedError.message);
       logError(error, 'Login');
       throw parsedError;
@@ -139,6 +162,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Handle different response structures
       const responseData = response.data;
+      
+      // Check if verification is required
+      if (responseData.verification_required) {
+        // Registration successful but verification required
+        // Don't set user or tokens, just return success
+        return {
+          success: true,
+          verification_required: true,
+          email: responseData.email,
+          message: responseData.message
+        };
+      }
+      
+      // Legacy flow - immediate login (for backward compatibility)
       let access, refresh, newUser;
       
       if (responseData.tokens) {
@@ -157,23 +194,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Invalid response format from server');
       }
 
-      // Store tokens securely
-      Cookies.set('access_token', access, { 
-        expires: 1,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      
-      if (refresh) {
-        Cookies.set('refresh_token', refresh, { 
-          expires: 7,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax'
-        });
-      }
+      // Store tokens using token manager
+      tokenManager.setTokens({ access, refresh });
 
       setUser(newUser);
-      router.push('/dashboard');
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          router.replace('/dashboard');
+        }, 50);
+      });
     } catch (error: any) {
       const parsedError = parseApiError(error);
       setError(parsedError.message);
@@ -193,13 +222,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logError(error, 'Logout');
     } finally {
       // Always clear local state
-      Cookies.remove('access_token');
-      Cookies.remove('refresh_token');
+      tokenManager.clearTokens();
       
       // For mock API, also clear localStorage
       if (process.env.NEXT_PUBLIC_USE_MOCK_API === 'true') {
         localStorage.removeItem('koroh_current_user');
       }
+      
+      // Reset all Zustand stores
+      resetAllStores();
       
       setUser(null);
       setError(null);
@@ -207,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear any stored redirect paths
       sessionStorage.removeItem('redirectAfterLogin');
       
-      router.push('/');
+      router.replace('/');
     }
   };
 
@@ -250,6 +281,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const verifyEmail = async (token: string) => {
+    try {
+      setError(null);
+      const response = await api.auth.verifyEmail(token);
+      return response.data;
+    } catch (error: any) {
+      const parsedError = parseApiError(error);
+      setError(parsedError.message);
+      logError(error, 'Email verification');
+      throw parsedError;
+    }
+  };
+
+  const resendVerification = async (email: string) => {
+    try {
+      setError(null);
+      const response = await api.auth.resendVerification(email);
+      return response.data;
+    } catch (error: any) {
+      const parsedError = parseApiError(error);
+      setError(parsedError.message);
+      logError(error, 'Resend verification');
+      throw parsedError;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -259,6 +316,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     requestPasswordReset,
     resetPassword,
+    verifyEmail,
+    resendVerification,
     clearError,
     refreshUser,
     isAuthenticated,
