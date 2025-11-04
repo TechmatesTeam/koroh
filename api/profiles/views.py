@@ -12,6 +12,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+import logging
 
 from .models import Profile
 from .serializers import (
@@ -22,6 +23,14 @@ from .serializers import (
     ProfilePublicSerializer
 )
 from .services import CVProcessingService, CVStorageService
+from koroh_platform.permissions import (
+    IsProfileOwner,
+    SecureFileUploadPermission,
+    IsAnonymousOrAuthenticated,
+    log_permission_denied
+)
+
+logger = logging.getLogger('koroh_platform.security')
 
 User = get_user_model()
 
@@ -33,7 +42,7 @@ class ProfileDetailView(generics.RetrieveAPIView):
     Returns the authenticated user's profile information.
     """
     serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsProfileOwner]
     
     def get_object(self):
         """Get or create profile for the current user."""
@@ -48,7 +57,7 @@ class ProfileCreateView(generics.CreateAPIView):
     Creates a profile with basic information for the authenticated user.
     """
     serializer_class = ProfileCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsProfileOwner]
     
     def perform_create(self, serializer):
         """Create profile for the current user."""
@@ -62,7 +71,7 @@ class ProfileUpdateView(generics.UpdateAPIView):
     Allows partial updates to the authenticated user's profile.
     """
     serializer_class = ProfileUpdateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsProfileOwner]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     
     def get_object(self):
@@ -78,7 +87,7 @@ class CVUploadView(generics.UpdateAPIView):
     Handles CV file upload with validation and metadata extraction.
     """
     serializer_class = CVUploadSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [SecureFileUploadPermission, IsProfileOwner]
     parser_classes = [MultiPartParser, FormParser]
     
     def __init__(self, *args, **kwargs):
@@ -150,7 +159,7 @@ class ProfilePublicView(generics.RetrieveAPIView):
     Returns public profile information for any user.
     """
     serializer_class = ProfilePublicSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAnonymousOrAuthenticated]
     lookup_field = 'user_id'
     
     def get_object(self):
@@ -162,7 +171,7 @@ class ProfilePublicView(generics.RetrieveAPIView):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def add_skill(request):
     """
     Add a skill to the current user's profile.
@@ -190,7 +199,7 @@ def add_skill(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def remove_skill(request):
     """
     Remove a skill from the current user's profile.
@@ -218,7 +227,7 @@ def remove_skill(request):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def profile_stats(request):
     """
     Get profile completion statistics for the current user.
@@ -262,7 +271,7 @@ def profile_stats(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def analyze_cv(request):
     """
     Analyze the current user's CV and extract metadata.
@@ -317,7 +326,7 @@ def analyze_cv(request):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def cv_metadata(request):
     """
     Get CV metadata for the current user.
@@ -341,7 +350,7 @@ def cv_metadata(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def generate_portfolio(request):
     """
     Generate a portfolio for the current user.
@@ -411,7 +420,7 @@ def generate_portfolio(request):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def list_portfolios(request):
     """
     List portfolios for the current user.
@@ -454,7 +463,7 @@ def list_portfolios(request):
 
 
 @api_view(['PATCH'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsProfileOwner])
 def update_portfolio(request, portfolio_id):
     """
     Update portfolio customizations and content.

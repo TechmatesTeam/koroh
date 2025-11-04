@@ -6,6 +6,8 @@ import logging
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
+from django.conf import settings
+from django.utils import timezone
 from .models import Profile
 from koroh_platform.utils.cv_analysis_service import CVAnalysisService
 from koroh_platform.utils.portfolio_generation_service import PortfolioGenerationService
@@ -168,10 +170,13 @@ def generate_portfolio_async(self, profile_id, template="professional", style="f
         }
         
         # Generate portfolio URL (simplified)
-        portfolio_url = f"/portfolio/{profile.user.username or profile.user.id}"
+        portfolio_url = f"{settings.FRONTEND_URL}/portfolio/{profile.user.username or profile.user.id}"
         profile.portfolio_url = portfolio_url
         
         profile.save()
+        
+        # Send portfolio completion email
+        send_portfolio_completion_email.delay(profile.user.id, portfolio_url, 85)
         
         logger.info(f"Portfolio generated for profile {profile_id}")
         
@@ -306,23 +311,8 @@ def send_profile_completion_reminder(self, user_id):
         if completion_percentage >= 70:
             return {'success': True, 'reminder_not_needed': True}
         
-        from django.core.mail import send_mail
-        from django.conf import settings
-        
-        subject = "Complete Your Koroh Profile"
-        message = f"""
-        Hi {user.first_name or user.email},
-        
-        Your Koroh profile is {completion_percentage:.0f}% complete. 
-        
-        Complete your profile to:
-        - Get better job recommendations
-        - Generate an AI-powered portfolio
-        - Connect with relevant peer groups
-        - Increase your visibility to recruiters
-        
-        Missing items:
-        {chr(10).join([f"- {item}" for item, field in zip([
+        # Prepare missing items list
+        field_descriptions = [
             "Professional headline",
             "Professional summary", 
             "Location",
@@ -330,34 +320,80 @@ def send_profile_completion_reminder(self, user_id):
             "Skills",
             "CV upload",
             "Profile picture"
-        ], completion_fields) if not field])}
+        ]
         
-        Complete your profile now to unlock the full potential of Koroh!
+        missing_items = []
+        for field, description in zip(completion_fields, field_descriptions):
+            if not field:
+                time_estimate = "1 minute" if description in ["Professional headline", "Location", "Industry"] else "2-3 minutes"
+                missing_items.append({
+                    'description': f"Add {description.lower()}",
+                    'time_estimate': time_estimate
+                })
         
-        Best regards,
-        The Koroh Team
-        """
+        # Import here to avoid circular imports
+        from authentication.email_templates import send_profile_completion_reminder_email
         
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False
+        # Send professional reminder email
+        success = send_profile_completion_reminder_email(
+            user, 
+            completion_percentage, 
+            missing_items
         )
         
-        logger.info(f"Profile completion reminder sent to {user.email}")
-        return {
-            'success': True, 
-            'email_sent': True,
-            'completion_percentage': completion_percentage
-        }
+        if success:
+            logger.info(f"Profile completion reminder sent to {user.email}")
+            return {
+                'success': True, 
+                'email_sent': True,
+                'completion_percentage': completion_percentage
+            }
+        else:
+            return {'success': False, 'error': 'Failed to send email'}
         
     except User.DoesNotExist:
         logger.error(f"User with ID {user_id} not found")
         return {'success': False, 'error': 'User not found'}
     except Exception as e:
         logger.error(f"Failed to send profile completion reminder to user {user_id}: {e}")
+        
+        # Retry the task
+        if self.request.retries < self.max_retries:
+            raise self.retry(countdown=60 * (2 ** self.request.retries))
+        
+        return {'success': False, 'error': str(e)}
+
+
+@shared_task(bind=True, max_retries=3)
+def send_portfolio_completion_email(self, user_id, portfolio_url, quality_score=85):
+    """
+    Background task to send portfolio completion notification email.
+    
+    Args:
+        user_id: ID of the user whose portfolio was generated
+        portfolio_url: URL of the generated portfolio
+        quality_score: Quality score of the generated portfolio
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Import here to avoid circular imports
+        from authentication.email_templates import send_portfolio_generated_email
+        
+        # Send professional portfolio completion email
+        success = send_portfolio_generated_email(user, portfolio_url, quality_score)
+        
+        if success:
+            logger.info(f"Portfolio completion email sent to {user.email}")
+            return {'success': True, 'email_sent': True}
+        else:
+            return {'success': False, 'error': 'Failed to send email'}
+        
+    except User.DoesNotExist:
+        logger.error(f"User with ID {user_id} not found")
+        return {'success': False, 'error': 'User not found'}
+    except Exception as e:
+        logger.error(f"Failed to send portfolio completion email to user {user_id}: {e}")
         
         # Retry the task
         if self.request.retries < self.max_retries:
