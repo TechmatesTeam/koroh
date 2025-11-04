@@ -8,6 +8,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from . import health
 from django.http import HttpResponse
 
 urlpatterns = [
@@ -28,10 +29,11 @@ urlpatterns = [
         path('ai/', include('ai_chat.urls')),
     ])),
     
-    # Health check endpoint
-    path('health/', include([
-        path('', lambda request: HttpResponse('OK'), name='health_check'),
-    ])),
+    # Health check endpoints
+    path('health/', health.health_check, name='health_check'),
+    path('health/ready/', health.readiness_check, name='readiness_check'),
+    path('health/live/', health.liveness_check, name='liveness_check'),
+    path('api/v1/health/', health.health_check, name='api_health_check'),
     
     # Prometheus metrics endpoint
     path('metrics/', include('django_prometheus.urls')),
