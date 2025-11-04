@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { AppLayout } from '@/components/layout/app-layout';
 import { CompanySearch } from '@/components/companies/company-search';
 import { CompanyFilters } from '@/components/companies/company-filters';
 import { CompanyList } from '@/components/companies/company-list';
 import { CompanyInsights } from '@/components/companies/company-insights';
-import { api } from '@/lib/api';
-import { Company, PaginatedResponse } from '@/types';
+import { useCompanies } from '@/lib/hooks/use-companies';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,95 +22,25 @@ interface CompanySearchParams {
 }
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [followedCompanies, setFollowedCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchParams, setSearchParams] = useState<CompanySearchParams>({
-    query: '',
-    industry: '',
-    size: '',
-    location: '',
-    page: 1,
-    limit: 20,
-  });
-  const [totalCount, setTotalCount] = useState(0);
   const [activeTab, setActiveTab] = useState('discover');
-
-  // Load initial data
-  useEffect(() => {
-    loadCompanies();
-    loadFollowedCompanies();
-  }, []);
-
-  // Load companies when search params change
-  useEffect(() => {
-    if (searchParams.query || searchParams.industry || searchParams.size || searchParams.location) {
-      loadCompanies();
-    }
-  }, [searchParams]);
-
-  const loadCompanies = async () => {
-    try {
-      setLoading(true);
-      const response = await api.companies.search(searchParams);
-      const data: PaginatedResponse<Company> = response.data;
-      setCompanies(data.results);
-      setTotalCount(data.count);
-    } catch (error) {
-      console.error('Error loading companies:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadFollowedCompanies = async () => {
-    try {
-      // This would be a separate endpoint for followed companies
-      const response = await api.companies.search({ following: true });
-      setFollowedCompanies(response.data.results || []);
-    } catch (error) {
-      console.error('Error loading followed companies:', error);
-    }
-  };
-
-  const handleSearch = (params: Partial<CompanySearchParams>) => {
-    setSearchParams(prev => ({
-      ...prev,
-      ...params,
-      page: 1, // Reset to first page on new search
-    }));
-  };
-
-  const handlePageChange = (page: number) => {
-    setSearchParams(prev => ({ ...prev, page }));
-  };
-
-  const handleCompanyFollow = async (companyId: string, isFollowing: boolean) => {
-    try {
-      if (isFollowing) {
-        await api.companies.unfollow(companyId);
-      } else {
-        await api.companies.follow(companyId);
-      }
-      
-      // Update the company in the list
-      setCompanies(prev => prev.map(company => 
-        company.id === companyId 
-          ? { ...company, is_following: !isFollowing }
-          : company
-      ));
-      
-      // Reload followed companies if we're on that tab
-      if (activeTab === 'following') {
-        loadFollowedCompanies();
-      }
-    } catch (error) {
-      console.error('Error updating company follow status:', error);
-    }
-  };
+  
+  const {
+    companies,
+    followedCompanies,
+    companyInsights,
+    searchParams,
+    pagination,
+    isLoading,
+    error,
+    search,
+    setPage,
+    followCompany,
+  } = useCompanies();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute>
+      <AppLayout>
+        <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -137,7 +68,7 @@ export default function CompaniesPage() {
                   <CardContent>
                     <CompanyFilters
                       searchParams={searchParams}
-                      onFiltersChange={handleSearch}
+                      onFiltersChange={search}
                     />
                   </CardContent>
                 </Card>
@@ -149,13 +80,13 @@ export default function CompaniesPage() {
                 <div className="mb-6">
                   <CompanySearch
                     searchParams={searchParams}
-                    onSearch={handleSearch}
+                    onSearch={search}
                   />
                 </div>
 
                 {/* Results */}
                 <div className="space-y-6">
-                  {loading ? (
+                  {isLoading ? (
                     <div className="flex justify-center py-12">
                       <LoadingSpinner size="lg" />
                     </div>
@@ -164,8 +95,8 @@ export default function CompaniesPage() {
                       {/* Results Header */}
                       <div className="flex justify-between items-center">
                         <p className="text-gray-600">
-                          {totalCount > 0 ? (
-                            <>Showing {companies.length} of {totalCount} companies</>
+                          {pagination.totalCount > 0 ? (
+                            <>Showing {companies.length} of {pagination.totalCount} companies</>
                           ) : (
                             'No companies found'
                           )}
@@ -175,11 +106,11 @@ export default function CompaniesPage() {
                       {/* Company List */}
                       <CompanyList
                         companies={companies}
-                        onCompanyFollow={handleCompanyFollow}
-                        onPageChange={handlePageChange}
-                        currentPage={searchParams.page || 1}
-                        totalCount={totalCount}
-                        pageSize={searchParams.limit || 20}
+                        onCompanyFollow={followCompany}
+                        onPageChange={setPage}
+                        currentPage={pagination.page}
+                        totalCount={pagination.totalCount}
+                        pageSize={pagination.limit}
                       />
                     </>
                   )}
@@ -192,7 +123,7 @@ export default function CompaniesPage() {
             <div className="max-w-4xl">
               <CompanyList
                 companies={followedCompanies}
-                onCompanyFollow={handleCompanyFollow}
+                onCompanyFollow={followCompany}
                 onPageChange={() => {}}
                 currentPage={1}
                 totalCount={followedCompanies.length}
@@ -203,10 +134,12 @@ export default function CompaniesPage() {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
-            <CompanyInsights followedCompanies={followedCompanies} />
+            <CompanyInsights followedCompanies={followedCompanies} insights={companyInsights} />
           </TabsContent>
         </Tabs>
       </div>
     </div>
+      </AppLayout>
+    </ProtectedRoute>
   );
 }

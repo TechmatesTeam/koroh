@@ -183,6 +183,7 @@ export default function IntegrationTestPage() {
         const result = await register({
           email: testCredentials.email,
           password: testCredentials.password,
+          password_confirm: testCredentials.password,
           first_name: testCredentials.firstName,
           last_name: testCredentials.lastName
         });
