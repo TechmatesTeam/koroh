@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { useNotifications } from '@/contexts/notification-context';
 import { Button } from '@/components/ui/button';
@@ -49,12 +50,22 @@ export function RegisterForm() {
         first_name: data.first_name,
         last_name: data.last_name,
       };
-      await registerUser(userData);
-      addNotification({
-        type: 'success',
-        title: 'Welcome to Koroh!',
-        message: 'Your account has been created successfully.',
-      });
+      const result = await registerUser(userData);
+      
+      // Check if verification is required
+      if (result?.verification_required) {
+        addNotification({
+          type: 'success',
+          title: 'Account Created!',
+          message: 'Please check your email to verify your account before logging in.',
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'Welcome to Koroh!',
+          message: 'Your account has been created successfully.',
+        });
+      }
     } catch (error: any) {
       addNotification({
         type: 'error',
@@ -150,13 +161,13 @@ export function RegisterForm() {
         />
         <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-900">
           I agree to the{' '}
-          <a href="#" className="text-teal-600 hover:text-teal-500 transition-colors">
+          <Link href="/terms" className="text-teal-600 hover:text-teal-500 transition-colors">
             Terms of Service
-          </a>{' '}
+          </Link>{' '}
           and{' '}
-          <a href="#" className="text-teal-600 hover:text-teal-500 transition-colors">
+          <Link href="/privacy" className="text-teal-600 hover:text-teal-500 transition-colors">
             Privacy Policy
-          </a>
+          </Link>
         </label>
       </div>
 

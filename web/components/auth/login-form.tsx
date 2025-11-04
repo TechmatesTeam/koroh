@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { useNotifications } from '@/contexts/notification-context';
 import { getErrorMessage, logError, isAuthError } from '@/lib/error-handler';
@@ -49,6 +50,17 @@ export function LoginForm() {
     } catch (error: any) {
       logError(error, 'Login form');
       const errorMessage = getErrorMessage(error);
+      
+      // Handle verification required error
+      if (error.verification_required) {
+        setServerError(`Please verify your email address before logging in. Check your inbox at ${error.email || 'your email'}.`);
+        addNotification({
+          type: 'warning',
+          title: 'Email verification required',
+          message: 'Please check your email and click the verification link to activate your account.',
+        });
+        return;
+      }
       
       // Handle specific error types
       if (error.code === 'INVALID_CREDENTIALS') {
@@ -150,13 +162,13 @@ export function LoginForm() {
         </div>
 
         <div className="text-sm">
-          <a 
+          <Link 
             href="/auth/forgot-password" 
             className="font-medium text-teal-600 hover:text-teal-500 transition-colors"
             tabIndex={isLoading ? -1 : 0}
           >
             Forgot your password?
-          </a>
+          </Link>
         </div>
       </div>
 

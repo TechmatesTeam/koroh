@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import Link from 'next/link';
 import { useNotifications } from '@/contexts/notification-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -169,9 +170,9 @@ export function ForgotPasswordForm() {
       <div className="text-center">
         <p className="text-sm text-gray-600">
           Remember your password?{' '}
-          <a href="/auth/login" className="font-medium text-teal-600 hover:text-teal-500 transition-colors">
+          <Link href="/auth/login" className="font-medium text-teal-600 hover:text-teal-500 transition-colors">
             Sign in
-          </a>
+          </Link>
         </p>
       </div>
     </form>

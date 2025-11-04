@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import Link from 'next/link';
 import { useNotifications } from '@/contexts/notification-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +50,7 @@ export function ResetPasswordForm() {
         title: 'Invalid reset link',
         message: 'This reset link is invalid or has expired.',
       });
-      router.push('/auth/forgot-password');
+      router.replace('/auth/forgot-password');
     }
   }, [searchParams, router, addNotification]);
 
@@ -76,7 +77,7 @@ export function ResetPasswordForm() {
 
       // Redirect to login after 3 seconds
       setTimeout(() => {
-        router.push('/auth/login');
+        router.replace('/auth/login');
       }, 3000);
     } catch (error: any) {
       addNotification({
@@ -106,7 +107,7 @@ export function ResetPasswordForm() {
 
         <div className="text-center">
           <Button
-            onClick={() => router.push('/auth/login')}
+            onClick={() => router.replace('/auth/login')}
             className="bg-teal-600 hover:bg-teal-700 font-medium"
           >
             Sign in now
@@ -162,9 +163,9 @@ export function ResetPasswordForm() {
       <div className="text-center">
         <p className="text-sm text-gray-600">
           Remember your password?{' '}
-          <a href="/auth/login" className="font-medium text-teal-600 hover:text-teal-500 transition-colors">
+          <Link href="/auth/login" className="font-medium text-teal-600 hover:text-teal-500 transition-colors">
             Sign in
-          </a>
+          </Link>
         </p>
       </div>
     </form>

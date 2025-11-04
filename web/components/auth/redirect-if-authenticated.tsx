@@ -19,7 +19,7 @@ export function RedirectIfAuthenticated({
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      router.push(redirectTo);
+      router.replace(redirectTo);
     }
   }, [isAuthenticated, loading, router, redirectTo]);
 

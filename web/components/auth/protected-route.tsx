@@ -48,18 +48,7 @@ export function ProtectedRoute({
 
   // If authentication is required but user is not authenticated, don't render children
   if (requireAuth && !isAuthenticated) {
-    return fallback || (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Authentication Required
-          </h2>
-          <p className="text-gray-600">
-            Please log in to access this page.
-          </p>
-        </div>
-      </div>
-    );
+    return fallback || null; // Let the redirect handle it
   }
 
   return <>{children}</>;
@@ -155,24 +144,9 @@ export function RoleProtectedRoute({
   const hasPermission = allowedRoles.length === 0 || allowedRoles.includes(currentUserRole);
 
   if (!hasPermission) {
-    return fallback || (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Access Denied
-          </h2>
-          <p className="text-gray-600">
-            You don't have permission to access this page.
-          </p>
-          <button
-            onClick={() => router.back()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
+    // Redirect to forbidden page
+    router.push('/forbidden');
+    return null;
   }
 
   return <>{children}</>;
