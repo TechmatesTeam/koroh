@@ -140,6 +140,14 @@ class CVUploadView(generics.UpdateAPIView):
             cv_metadata=processing_result['metadata']
         )
         
+        # Trigger async CV analysis
+        from .tasks import analyze_cv_async
+        try:
+            analyze_cv_async.delay(instance.id, instance.cv_file.path)
+            logger.info(f"CV analysis task queued for profile {instance.id}")
+        except Exception as e:
+            logger.warning(f"Failed to queue CV analysis task: {e}")
+        
         # Return full profile data with processing results
         profile_serializer = ProfileSerializer(instance)
         response_data = profile_serializer.data
@@ -346,6 +354,25 @@ def cv_metadata(request):
         'cv_uploaded_at': profile.cv_uploaded_at,
         'cv_metadata': profile.cv_metadata,
         'has_metadata': bool(profile.cv_metadata)
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsProfileOwner])
+def processing_status(request):
+    """
+    Get current processing status for CV analysis and portfolio generation.
+    
+    Returns real-time status updates for background tasks.
+    """
+    profile, created = Profile.objects.get_or_create(user=request.user)
+    
+    return Response({
+        'processing_status': profile.processing_status or {},
+        'has_cv': profile.has_cv,
+        'has_portfolio': profile.has_portfolio,
+        'cv_uploaded_at': profile.cv_uploaded_at,
+        'portfolio_url': profile.portfolio_url
     }, status=status.HTTP_200_OK)
 
 

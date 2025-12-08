@@ -31,6 +31,7 @@ urlpatterns = [
     # CV analysis endpoints
     path('cv/analyze/', views.analyze_cv, name='analyze-cv'),
     path('cv/metadata/', views.cv_metadata, name='cv-metadata'),
+    path('processing-status/', views.processing_status, name='processing-status'),
     
     # Portfolio generation endpoints
     path('generate-portfolio/', views.generate_portfolio, name='generate-portfolio'),
