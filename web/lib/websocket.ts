@@ -1,11 +1,11 @@
 /**
  * WebSocket client for real-time features in Koroh Platform.
- * 
+ *
  * This module provides WebSocket connections for AI chat, notifications,
  * peer group activities, and dashboard updates.
  */
 
-import { tokenManager } from './token-manager';
+import { tokenManager } from "./token-manager";
 
 export interface WebSocketMessage {
   type: string;
@@ -39,7 +39,7 @@ export class WebSocketClient {
       reconnectInterval: 3000,
       maxReconnectAttempts: 5,
       heartbeatInterval: 30000,
-      ...config
+      ...config,
     };
   }
 
@@ -47,7 +47,10 @@ export class WebSocketClient {
    * Connect to the WebSocket server.
    */
   async connect(): Promise<void> {
-    if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
+    if (
+      this.isConnecting ||
+      (this.ws && this.ws.readyState === WebSocket.OPEN)
+    ) {
       return;
     }
 
@@ -57,20 +60,19 @@ export class WebSocketClient {
     try {
       // Get authentication token
       const token = await tokenManager.getValidAccessToken();
-      
+
       // Build WebSocket URL
       const wsUrl = this.buildWebSocketUrl(token || undefined);
-      
+
       // Create WebSocket connection
       this.ws = new WebSocket(wsUrl, this.config.protocols);
-      
+
       this.ws.onopen = this.handleOpen.bind(this);
       this.ws.onmessage = this.handleMessage.bind(this);
       this.ws.onclose = this.handleClose.bind(this);
       this.ws.onerror = this.handleError.bind(this);
-
     } catch (error) {
-      console.error('Failed to connect to WebSocket:', error);
+      console.error("Failed to connect to WebSocket:", error);
       this.isConnecting = false;
       this.scheduleReconnect();
     }
@@ -82,9 +84,9 @@ export class WebSocketClient {
   disconnect(): void {
     this.isManualClose = true;
     this.clearTimers();
-    
+
     if (this.ws) {
-      this.ws.close(1000, 'Manual disconnect');
+      this.ws.close(1000, "Manual disconnect");
       this.ws = null;
     }
   }
@@ -94,14 +96,14 @@ export class WebSocketClient {
    */
   send(type: string, data: any): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket not connected, cannot send message');
+      console.warn("WebSocket not connected, cannot send message");
       return;
     }
 
     const message = {
       type,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.ws.send(JSON.stringify(message));
@@ -166,65 +168,64 @@ export class WebSocketClient {
   }
 
   private buildWebSocketUrl(token?: string): string {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = process.env.NEXT_PUBLIC_WS_HOST || window.location.host;
     let url = `${protocol}//${host}${this.config.url}`;
-    
+
     // Add authentication token as query parameter for WebSocket
     if (token) {
-      const separator = url.includes('?') ? '&' : '?';
+      const separator = url.includes("?") ? "&" : "?";
       url += `${separator}token=${encodeURIComponent(token)}`;
     }
-    
+
     return url;
   }
 
   private handleOpen(event: Event): void {
-    console.log('WebSocket connected:', this.config.url);
+    console.log("WebSocket connected:", this.config.url);
     this.isConnecting = false;
     this.reconnectAttempts = 0;
-    
+
     // Start heartbeat
     this.startHeartbeat();
-    
+
     // Notify connection handlers
-    this.connectionHandlers.forEach(handler => handler());
+    this.connectionHandlers.forEach((handler) => handler());
   }
 
   private handleMessage(event: MessageEvent): void {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
-      
+
       // Handle heartbeat response
-      if (message.type === 'pong') {
+      if (message.type === "pong") {
         return;
       }
-      
+
       // Dispatch to message handlers
       const handlers = this.messageHandlers.get(message.type);
       if (handlers) {
-        handlers.forEach(handler => handler(message.data));
+        handlers.forEach((handler) => handler(message.data));
       }
-      
+
       // Also dispatch to 'message' handlers for all messages
-      const allHandlers = this.messageHandlers.get('message');
+      const allHandlers = this.messageHandlers.get("message");
       if (allHandlers) {
-        allHandlers.forEach(handler => handler(message));
+        allHandlers.forEach((handler) => handler(message));
       }
-      
     } catch (error) {
-      console.error('Failed to parse WebSocket message:', error);
+      console.error("Failed to parse WebSocket message:", error);
     }
   }
 
   private handleClose(event: CloseEvent): void {
-    console.log('WebSocket disconnected:', event.code, event.reason);
+    console.log("WebSocket disconnected:", event.code, event.reason);
     this.isConnecting = false;
     this.clearTimers();
-    
+
     // Notify disconnection handlers
-    this.disconnectionHandlers.forEach(handler => handler(event));
-    
+    this.disconnectionHandlers.forEach((handler) => handler(event));
+
     // Attempt to reconnect if not manually closed
     if (!this.isManualClose && event.code !== 1000) {
       this.scheduleReconnect();
@@ -232,23 +233,37 @@ export class WebSocketClient {
   }
 
   private handleError(event: Event): void {
-    console.error('WebSocket error:', event);
+    // Only log if we haven't exceeded max reconnect attempts
+    if (this.reconnectAttempts < this.config.maxReconnectAttempts!) {
+      console.warn(`WebSocket connection error for ${this.config.url}`);
+    }
     this.isConnecting = false;
-    
+
     // Notify error handlers
-    this.errorHandlers.forEach(handler => handler(event));
+    this.errorHandlers.forEach((handler) => handler(event));
   }
 
   private scheduleReconnect(): void {
-    if (this.isManualClose || this.reconnectAttempts >= this.config.maxReconnectAttempts!) {
+    if (
+      this.isManualClose ||
+      this.reconnectAttempts >= this.config.maxReconnectAttempts!
+    ) {
+      if (this.reconnectAttempts >= this.config.maxReconnectAttempts!) {
+        console.warn(
+          `WebSocket max reconnect attempts (${this.config.maxReconnectAttempts}) reached for ${this.config.url}. Giving up.`
+        );
+      }
       return;
     }
 
     this.reconnectAttempts++;
-    const delay = this.config.reconnectInterval! * Math.pow(2, this.reconnectAttempts - 1);
-    
-    console.log(`Scheduling WebSocket reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-    
+    const delay =
+      this.config.reconnectInterval! * Math.pow(2, this.reconnectAttempts - 1);
+
+    console.log(
+      `Scheduling WebSocket reconnect attempt ${this.reconnectAttempts}/${this.config.maxReconnectAttempts} in ${delay}ms`
+    );
+
     this.reconnectTimer = setTimeout(() => {
       this.connect();
     }, delay);
@@ -258,7 +273,7 @@ export class WebSocketClient {
     if (this.config.heartbeatInterval! > 0) {
       this.heartbeatTimer = setInterval(() => {
         if (this.isConnected) {
-          this.send('ping', {});
+          this.send("ping", {});
         }
       }, this.config.heartbeatInterval!);
     }
@@ -269,7 +284,7 @@ export class WebSocketClient {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
@@ -318,23 +333,23 @@ class WebSocketManager {
    * Get AI chat WebSocket connection.
    */
   getAIChatConnection(sessionId?: string): WebSocketClient {
-    const url = sessionId ? `/ws/ai-chat/${sessionId}/` : '/ws/ai-chat/';
-    return this.getConnection('ai-chat', { url });
+    const url = sessionId ? `/ws/ai-chat/${sessionId}/` : "/ws/ai-chat/";
+    return this.getConnection("ai-chat", { url });
   }
 
   /**
    * Get notifications WebSocket connection.
    */
   getNotificationsConnection(): WebSocketClient {
-    return this.getConnection('notifications', { url: '/ws/notifications/' });
+    return this.getConnection("notifications", { url: "/ws/notifications/" });
   }
 
   /**
    * Get peer group WebSocket connection.
    */
   getPeerGroupConnection(groupSlug: string): WebSocketClient {
-    return this.getConnection(`peer-group-${groupSlug}`, { 
-      url: `/ws/peer-groups/${groupSlug}/` 
+    return this.getConnection(`peer-group-${groupSlug}`, {
+      url: `/ws/peer-groups/${groupSlug}/`,
     });
   }
 
@@ -342,8 +357,8 @@ class WebSocketManager {
    * Get peer group activity WebSocket connection.
    */
   getPeerGroupActivityConnection(): WebSocketClient {
-    return this.getConnection('peer-group-activity', { 
-      url: '/ws/peer-groups/activity/' 
+    return this.getConnection("peer-group-activity", {
+      url: "/ws/peer-groups/activity/",
     });
   }
 
@@ -351,7 +366,7 @@ class WebSocketManager {
    * Get dashboard WebSocket connection.
    */
   getDashboardConnection(): WebSocketClient {
-    return this.getConnection('dashboard', { url: '/ws/dashboard/' });
+    return this.getConnection("dashboard", { url: "/ws/dashboard/" });
   }
 }
 
@@ -359,8 +374,8 @@ class WebSocketManager {
 export const wsManager = new WebSocketManager();
 
 // Cleanup on page unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
     wsManager.closeAllConnections();
   });
 }
