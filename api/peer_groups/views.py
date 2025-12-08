@@ -160,8 +160,12 @@ class PeerGroupViewSet(ModelViewSet):
         try:
             # Simple discovery based on user profile
             profile = getattr(user, 'profile', None)
-            user_skills = profile.skills if profile and profile.skills else []
-            user_industry = profile.industry if profile else None
+            user_skills = []
+            user_industry = None
+            
+            if profile:
+                user_skills = getattr(profile, 'skills', []) or []
+                user_industry = getattr(profile, 'industry', None)
             
             # Build discovery query
             queryset = self.get_queryset().filter(is_active=True)
@@ -193,17 +197,31 @@ class PeerGroupViewSet(ModelViewSet):
             })
             
         except Exception as e:
+            import traceback
             logger.error(f"Error in discovery for user {user.id if user.is_authenticated else 'anonymous'}: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             
             # Fallback to basic groups
-            queryset = self.get_queryset().filter(is_active=True)[:10]
-            serializer = PeerGroupListSerializer(queryset, many=True, context={'request': request})
-            return Response({
-                'recommendations': [{'group': group} for group in serializer.data],
-                'total': len(serializer.data),
-                'ai_powered': False,
-                'fallback': True
-            })
+            try:
+                queryset = self.get_queryset().filter(is_active=True).annotate(
+                    member_count=Count('members', filter=Q(groupmembership__status='active'))
+                ).order_by('-member_count')[:10]
+                serializer = PeerGroupListSerializer(queryset, many=True, context={'request': request})
+                return Response({
+                    'recommendations': [{'group': group} for group in serializer.data],
+                    'total': len(serializer.data),
+                    'ai_powered': False,
+                    'fallback': True
+                })
+            except Exception as fallback_error:
+                logger.error(f"Fallback also failed: {fallback_error}")
+                return Response({
+                    'recommendations': [],
+                    'total': 0,
+                    'ai_powered': False,
+                    'fallback': True,
+                    'error': 'Unable to fetch group recommendations'
+                }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
     def my_groups(self, request):
