@@ -1,8 +1,8 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import { api } from '@/lib/api';
-import { logError } from '@/lib/error-handler';
-import { LoadingState, StoreActions } from './types';
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+import { api } from "@/lib/api";
+import { logError } from "@/lib/error-handler";
+import { LoadingState, StoreActions } from "./types";
 
 interface JobRecommendation {
   id: string;
@@ -61,7 +61,7 @@ interface DashboardData {
 interface DashboardState extends LoadingState, StoreActions {
   data: DashboardData;
   lastUpdated: Date | null;
-  
+
   // Actions
   fetchDashboardData: () => Promise<void>;
   updateJobRecommendations: (jobs: JobRecommendation[]) => void;
@@ -100,16 +100,20 @@ export const useDashboardStore = create<DashboardState>()(
         try {
           set({ isLoading: true, error: null });
 
-          const [jobsResponse, companiesResponse, peerGroupsResponse] = await Promise.all([
-            api.jobs.getRecommendations(),
-            api.companies.search({ page_size: 4 }),
-            api.peerGroups.discover({ limit: 3 }),
-          ]);
+          const [jobsResponse, companiesResponse, peerGroupsResponse] =
+            await Promise.all([
+              api.jobs.getRecommendations(),
+              api.companies.search({ page_size: 4 }),
+              api.peerGroups.discover({ limit: 3 }),
+            ]);
 
           const newData: DashboardData = {
             jobRecommendations: jobsResponse.data.recommendations || [],
             companies: companiesResponse.data.results || [],
-            peerGroups: peerGroupsResponse.data.recommendations?.map((r: any) => r.group) || [],
+            peerGroups:
+              peerGroupsResponse.data.recommendations?.map(
+                (r: any) => r.group
+              ) || [],
             profileCompletion: 75, // This would come from profile analysis
             stats: {
               profileViews: 127,
@@ -125,10 +129,17 @@ export const useDashboardStore = create<DashboardState>()(
             lastUpdated: new Date(),
           });
         } catch (error) {
-          logError(error, 'Dashboard data fetch');
+          logError(error, "Dashboard data fetch");
+          // Keep existing data on error, don't reset to empty
+          const currentData = get().data;
           set({
             isLoading: false,
-            error: 'Failed to load dashboard data',
+            error: "Failed to load dashboard data",
+            // Preserve existing data if available, otherwise use initial data
+            data:
+              currentData.jobRecommendations.length > 0
+                ? currentData
+                : initialData,
           });
         }
       },
@@ -169,9 +180,9 @@ export const useDashboardStore = create<DashboardState>()(
       followCompany: async (companyId: string) => {
         try {
           await api.companies.follow(companyId);
-          
+
           const currentData = get().data;
-          const updatedCompanies = currentData.companies.map(company =>
+          const updatedCompanies = currentData.companies.map((company) =>
             company.id === companyId
               ? { ...company, is_following: true }
               : company
@@ -185,7 +196,7 @@ export const useDashboardStore = create<DashboardState>()(
             lastUpdated: new Date(),
           });
         } catch (error) {
-          logError(error, 'Company follow');
+          logError(error, "Company follow");
           throw error;
         }
       },
@@ -193,12 +204,10 @@ export const useDashboardStore = create<DashboardState>()(
       joinPeerGroup: async (groupSlug: string) => {
         try {
           await api.peerGroups.join(groupSlug);
-          
+
           const currentData = get().data;
-          const updatedGroups = currentData.peerGroups.map(group =>
-            group.slug === groupSlug
-              ? { ...group, is_member: true }
-              : group
+          const updatedGroups = currentData.peerGroups.map((group) =>
+            group.slug === groupSlug ? { ...group, is_member: true } : group
           );
 
           set({
@@ -209,7 +218,7 @@ export const useDashboardStore = create<DashboardState>()(
             lastUpdated: new Date(),
           });
         } catch (error) {
-          logError(error, 'Group join');
+          logError(error, "Group join");
           throw error;
         }
       },
@@ -217,7 +226,7 @@ export const useDashboardStore = create<DashboardState>()(
       applyToJob: async (jobId: string) => {
         try {
           await api.jobs.apply(jobId);
-          
+
           // Update stats
           const currentData = get().data;
           set({
@@ -231,7 +240,7 @@ export const useDashboardStore = create<DashboardState>()(
             lastUpdated: new Date(),
           });
         } catch (error) {
-          logError(error, 'Job application');
+          logError(error, "Job application");
           throw error;
         }
       },
@@ -243,10 +252,16 @@ export const useDashboardStore = create<DashboardState>()(
       // Store actions
       setLoading: (loading: boolean) => set({ isLoading: loading }),
       setError: (error: string | null) => set({ error }),
-      reset: () => set({ data: initialData, isLoading: false, error: null, lastUpdated: null }),
+      reset: () =>
+        set({
+          data: initialData,
+          isLoading: false,
+          error: null,
+          lastUpdated: null,
+        }),
     }),
     {
-      name: 'dashboard-store',
+      name: "dashboard-store",
     }
   )
 );
