@@ -28,18 +28,55 @@ def analyze_cv_async(self, profile_id, cv_file_path):
     try:
         profile = Profile.objects.get(id=profile_id)
         
+        # Update status: Starting
+        profile.update_processing_status(
+            stage='cv_analysis',
+            status='processing',
+            message='Reading your CV file...',
+            progress=10
+        )
+        
         # Read CV file content
-        if default_storage.exists(cv_file_path):
-            with default_storage.open(cv_file_path, 'r') as cv_file:
+        if not default_storage.exists(cv_file_path):
+            raise FileNotFoundError(f"CV file not found: {cv_file_path}")
+        
+        # Read file as binary for PDF/DOC files, or text for MD files
+        file_extension = cv_file_path.lower().split('.')[-1]
+        
+        if file_extension in ['pdf', 'doc', 'docx']:
+            # For binary files, read as binary
+            with default_storage.open(cv_file_path, 'rb') as cv_file:
                 cv_content = cv_file.read()
         else:
-            raise FileNotFoundError(f"CV file not found: {cv_file_path}")
+            # For text files (markdown), read as text
+            with default_storage.open(cv_file_path, 'r') as cv_file:
+                cv_content = cv_file.read()
+        
+        logger.info(f"Read CV file for profile {profile_id}, size: {len(cv_content)} bytes")
+        
+        # Update status: Analyzing
+        profile.update_processing_status(
+            stage='cv_analysis',
+            status='processing',
+            message='Analyzing your CV with AI...',
+            progress=30
+        )
         
         # Initialize CV analysis service
         cv_service = CVAnalysisService()
         
         # Analyze CV content
+        logger.info(f"Starting CV analysis for profile {profile_id}")
         analysis_result = cv_service.analyze_cv(cv_content)
+        logger.info(f"CV analysis completed for profile {profile_id}")
+        
+        # Update status: Extracting data
+        profile.update_processing_status(
+            stage='cv_analysis',
+            status='processing',
+            message='Extracting skills and experience...',
+            progress=60
+        )
         
         # Update profile with extracted information
         if analysis_result.professional_summary:
@@ -86,8 +123,23 @@ def analyze_cv_async(self, profile_id, cv_file_path):
         
         logger.info(f"CV analysis completed for profile {profile_id}")
         
+        # Update status: Complete
+        profile.update_processing_status(
+            stage='cv_analysis',
+            status='completed',
+            message='CV analysis completed successfully!',
+            progress=100
+        )
+        
         # Trigger portfolio generation if requested
         if profile.preferences.get('auto_generate_portfolio', True):
+            # Update status: Starting portfolio generation
+            profile.update_processing_status(
+                stage='portfolio_generation',
+                status='processing',
+                message='Generating your portfolio...',
+                progress=10
+            )
             generate_portfolio_async.delay(profile_id)
         
         return {
@@ -102,6 +154,18 @@ def analyze_cv_async(self, profile_id, cv_file_path):
         return {'success': False, 'error': 'Profile not found'}
     except Exception as e:
         logger.error(f"CV analysis failed for profile {profile_id}: {e}")
+        
+        # Update status: Failed
+        try:
+            profile = Profile.objects.get(id=profile_id)
+            profile.update_processing_status(
+                stage='cv_analysis',
+                status='failed',
+                message=f'Analysis failed: {str(e)}',
+                progress=0
+            )
+        except:
+            pass
         
         # Retry the task
         if self.request.retries < self.max_retries:
@@ -123,6 +187,14 @@ def generate_portfolio_async(self, profile_id, template="professional", style="f
     try:
         profile = Profile.objects.get(id=profile_id)
         
+        # Update status: Starting
+        profile.update_processing_status(
+            stage='portfolio_generation',
+            status='processing',
+            message='Preparing portfolio content...',
+            progress=20
+        )
+        
         # Check if we have CV analysis data
         cv_analysis_data = profile.preferences.get('cv_analysis')
         if not cv_analysis_data:
@@ -131,6 +203,14 @@ def generate_portfolio_async(self, profile_id, template="professional", style="f
         # For now, we'll create a simplified portfolio generation
         # In a full implementation, you'd reconstruct the CVAnalysisResult from stored data
         # or re-analyze the CV
+        
+        # Update status: Building content
+        profile.update_processing_status(
+            stage='portfolio_generation',
+            status='processing',
+            message='Building portfolio sections...',
+            progress=50
+        )
         
         portfolio_service = PortfolioGenerationService()
         
@@ -175,6 +255,14 @@ def generate_portfolio_async(self, profile_id, template="professional", style="f
         
         profile.save()
         
+        # Update status: Complete
+        profile.update_processing_status(
+            stage='portfolio_generation',
+            status='completed',
+            message='Portfolio generated successfully!',
+            progress=100
+        )
+        
         # Send portfolio completion email
         send_portfolio_completion_email.delay(profile.user.id, portfolio_url, 85)
         
@@ -193,6 +281,18 @@ def generate_portfolio_async(self, profile_id, template="professional", style="f
         return {'success': False, 'error': 'Profile not found'}
     except Exception as e:
         logger.error(f"Portfolio generation failed for profile {profile_id}: {e}")
+        
+        # Update status: Failed
+        try:
+            profile = Profile.objects.get(id=profile_id)
+            profile.update_processing_status(
+                stage='portfolio_generation',
+                status='failed',
+                message=f'Portfolio generation failed: {str(e)}',
+                progress=0
+            )
+        except:
+            pass
         
         # Retry the task
         if self.request.retries < self.max_retries:
