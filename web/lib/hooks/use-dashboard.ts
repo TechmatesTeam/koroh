@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useDashboardStore } from '@/lib/stores';
-import { useAuth } from '@/contexts/auth-context';
-import { useNotifications } from '@/contexts/notification-context';
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useDashboardStore } from "@/lib/stores";
+import { useAuth } from "@/contexts/auth-context";
+import { useNotifications } from "@/contexts/notification-context";
 
 export function useDashboard() {
   const { user } = useAuth();
@@ -21,9 +21,10 @@ export function useDashboard() {
 
   // Use React Query for caching and background refetching
   const dashboardQuery = useQuery(
-    ['dashboard', user?.id],
+    ["dashboard", user?.id],
     async () => {
       await fetchDashboardData();
+      return useDashboardStore.getState().data;
     },
     {
       enabled: !!user,
@@ -44,9 +45,10 @@ export function useDashboard() {
   // Sync React Query error state with store
   useEffect(() => {
     if (dashboardQuery.error && !error) {
-      const errorMessage = dashboardQuery.error instanceof Error 
-        ? dashboardQuery.error.message 
-        : 'Failed to load dashboard data';
+      const errorMessage =
+        dashboardQuery.error instanceof Error
+          ? dashboardQuery.error.message
+          : "Failed to load dashboard data";
       useDashboardStore.getState().setError(errorMessage);
     }
   }, [dashboardQuery.error, error]);
@@ -56,15 +58,15 @@ export function useDashboard() {
     try {
       await followCompany(companyId);
       addNotification({
-        type: 'success',
-        title: 'Company followed',
-        message: 'You will receive updates about this company.',
+        type: "success",
+        title: "Company followed",
+        message: "You will receive updates about this company.",
       });
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Follow failed',
-        message: 'Failed to follow company. Please try again.',
+        type: "error",
+        title: "Follow failed",
+        message: "Failed to follow company. Please try again.",
       });
       throw error;
     }
@@ -74,15 +76,15 @@ export function useDashboard() {
     try {
       await joinPeerGroup(groupSlug);
       addNotification({
-        type: 'success',
-        title: 'Joined group',
-        message: 'You have successfully joined the peer group.',
+        type: "success",
+        title: "Joined group",
+        message: "You have successfully joined the peer group.",
       });
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Join failed',
-        message: 'Failed to join group. Please try again.',
+        type: "error",
+        title: "Join failed",
+        message: "Failed to join group. Please try again.",
       });
       throw error;
     }
@@ -92,15 +94,15 @@ export function useDashboard() {
     try {
       await applyToJob(jobId);
       addNotification({
-        type: 'success',
-        title: 'Application submitted',
-        message: 'Your job application has been submitted successfully.',
+        type: "success",
+        title: "Application submitted",
+        message: "Your job application has been submitted successfully.",
       });
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Application failed',
-        message: 'Failed to submit job application. Please try again.',
+        type: "error",
+        title: "Application failed",
+        message: "Failed to submit job application. Please try again.",
       });
       throw error;
     }
@@ -112,9 +114,9 @@ export function useDashboard() {
       dashboardQuery.refetch();
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Refresh failed',
-        message: 'Failed to refresh dashboard data.',
+        type: "error",
+        title: "Refresh failed",
+        message: "Failed to refresh dashboard data.",
       });
     }
   };
@@ -125,17 +127,17 @@ export function useDashboard() {
     isLoading: dashboardQuery.isLoading || isLoading,
     error: dashboardQuery.error || error,
     lastUpdated,
-    
+
     // Query state
     isRefetching: dashboardQuery.isRefetching,
     isFetching: dashboardQuery.isFetching,
-    
+
     // Actions
     followCompany: handleFollowCompany,
     joinPeerGroup: handleJoinPeerGroup,
     applyToJob: handleApplyToJob,
     refresh: handleRefresh,
-    
+
     // Raw query for advanced usage
     query: dashboardQuery,
   };
