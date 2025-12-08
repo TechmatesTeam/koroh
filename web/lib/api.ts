@@ -158,7 +158,7 @@ export const api = {
     uploadCV: (file: FormData) =>
       USE_MOCK_API
         ? Promise.reject(new Error("CV upload not available in mock mode"))
-        : apiClient.post("/profiles/upload-cv/", file, {
+        : apiClient.patch("/profiles/upload-cv/", file, {
             headers: { "Content-Type": "multipart/form-data" },
           }),
     generatePortfolio: (data?: { template?: string; portfolioName?: string }) =>
@@ -173,6 +173,16 @@ export const api = {
       USE_MOCK_API
         ? mockApi.profiles.updatePortfolio(portfolioId, data)
         : apiClient.patch(`/profiles/portfolios/${portfolioId}/`, data),
+    getProcessingStatus: () =>
+      USE_MOCK_API
+        ? Promise.resolve({
+            data: {
+              processing_status: {},
+              has_cv: false,
+              has_portfolio: false,
+            },
+          })
+        : apiClient.get("/profiles/processing-status/"),
   },
 
   // Jobs endpoints
