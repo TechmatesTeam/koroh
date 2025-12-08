@@ -132,6 +132,14 @@ class Profile(models.Model):
         help_text=_('User preferences and settings')
     )
     
+    # Processing status for CV analysis and portfolio generation
+    processing_status = models.JSONField(
+        _('processing status'),
+        default=dict,
+        blank=True,
+        help_text=_('Current status of CV analysis and portfolio generation')
+    )
+    
     # Privacy settings
     is_public = models.BooleanField(
         _('public profile'),
@@ -218,3 +226,18 @@ class Profile(models.Model):
         """Update CV metadata with extracted information."""
         self.cv_metadata = metadata
         self.save(update_fields=['cv_metadata'])
+    
+    def update_processing_status(self, stage, status, message=None, progress=0):
+        """Update processing status for real-time feedback."""
+        from django.utils import timezone
+        if not self.processing_status:
+            self.processing_status = {}
+        
+        self.processing_status.update({
+            'stage': stage,
+            'status': status,
+            'message': message,
+            'progress': progress,
+            'updated_at': timezone.now().isoformat()
+        })
+        self.save(update_fields=['processing_status'])
