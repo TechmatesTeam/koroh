@@ -89,6 +89,11 @@ class SecurityValidationMiddleware(MiddlewareMixin):
         if request.method == 'POST':
             try:
                 if hasattr(request, 'body') and request.body:
+                    # Skip validation for multipart/form-data (file uploads)
+                    content_type = request.content_type or ''
+                    if 'multipart/form-data' in content_type:
+                        return True  # Skip validation for file uploads
+                    
                     # For JSON data
                     if request.content_type == 'application/json':
                         try:
@@ -98,11 +103,12 @@ class SecurityValidationMiddleware(MiddlewareMixin):
                         except (json.JSONDecodeError, UnicodeDecodeError):
                             pass  # Let Django handle invalid JSON
                     
-                    # Check raw body for suspicious patterns
-                    body_str = request.body.decode('utf-8', errors='ignore')
-                    if not self.is_safe_input(body_str):
-                        logger.warning(f"Suspicious POST body from IP {self.get_client_ip(request)}")
-                        return False
+                    # Check raw body for suspicious patterns (only for non-binary content)
+                    elif 'application/x-www-form-urlencoded' in content_type or not content_type:
+                        body_str = request.body.decode('utf-8', errors='ignore')
+                        if not self.is_safe_input(body_str):
+                            logger.warning(f"Suspicious POST body from IP {self.get_client_ip(request)}")
+                            return False
                         
             except Exception as e:
                 logger.error(f"Error validating POST data: {e}")
