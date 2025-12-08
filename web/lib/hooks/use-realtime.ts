@@ -1,14 +1,14 @@
 /**
  * React hooks for real-time WebSocket functionality.
- * 
+ *
  * This module provides React hooks for connecting to WebSocket services
  * and handling real-time updates in components.
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { wsManager, WebSocketClient } from '../websocket';
-import { useAuth } from '@/contexts/auth-context';
-import { useNotifications } from '@/contexts/notification-context';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { wsManager, WebSocketClient } from "../websocket";
+import { useAuth } from "@/contexts/auth-context";
+import { useNotifications } from "@/contexts/notification-context";
 
 export interface UseRealtimeOptions {
   autoConnect?: boolean;
@@ -31,7 +31,18 @@ export function useWebSocket(
   const connectionRef = useRef<WebSocketClient | null>(null);
   const { autoConnect = true, onConnect, onDisconnect, onError } = options;
 
+  // Check if WebSockets are enabled
+  const websocketsEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_WEBSOCKETS !== "false";
+
   const connect = useCallback(async () => {
+    if (!websocketsEnabled) {
+      console.log(
+        `WebSockets are disabled. Skipping connection to ${connectionName}`
+      );
+      return;
+    }
+
     if (!user || isConnecting || isConnected) return;
 
     setIsConnecting(true);
@@ -62,7 +73,8 @@ export function useWebSocket(
       console.error(`Failed to connect to ${connectionName}:`, error);
       setIsConnecting(false);
     }
-  }, [user, isConnecting, isConnected, getConnection, connectionName, onConnect, onDisconnect, onError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, connectionName, websocketsEnabled]);
 
   const disconnect = useCallback(() => {
     if (connectionRef.current) {
@@ -73,34 +85,44 @@ export function useWebSocket(
     setIsConnecting(false);
   }, []);
 
-  const send = useCallback((type: string, data: any) => {
-    if (connectionRef.current && isConnected) {
-      connectionRef.current.send(type, data);
-    }
-  }, [isConnected]);
+  const send = useCallback(
+    (type: string, data: any) => {
+      if (connectionRef.current && isConnected) {
+        connectionRef.current.send(type, data);
+      }
+    },
+    [isConnected]
+  );
 
-  const on = useCallback((messageType: string, handler: (data: any) => void) => {
-    if (connectionRef.current) {
-      connectionRef.current.on(messageType, handler);
-    }
-  }, []);
+  const on = useCallback(
+    (messageType: string, handler: (data: any) => void) => {
+      if (connectionRef.current) {
+        connectionRef.current.on(messageType, handler);
+      }
+    },
+    []
+  );
 
-  const off = useCallback((messageType: string, handler: (data: any) => void) => {
-    if (connectionRef.current) {
-      connectionRef.current.off(messageType, handler);
-    }
-  }, []);
+  const off = useCallback(
+    (messageType: string, handler: (data: any) => void) => {
+      if (connectionRef.current) {
+        connectionRef.current.off(messageType, handler);
+      }
+    },
+    []
+  );
 
   // Auto-connect when user is available
   useEffect(() => {
-    if (user && autoConnect) {
+    if (user && autoConnect && !isConnected && !isConnecting) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [user, autoConnect, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, autoConnect]);
 
   return {
     isConnected,
@@ -110,19 +132,22 @@ export function useWebSocket(
     send,
     on,
     off,
-    connection: connectionRef.current
+    connection: connectionRef.current,
   };
 }
 
 /**
  * Hook for AI chat real-time functionality.
  */
-export function useAIChat(sessionId?: string, options: UseRealtimeOptions = {}) {
+export function useAIChat(
+  sessionId?: string,
+  options: UseRealtimeOptions = {}
+) {
   const [messages, setMessages] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
 
   const websocket = useWebSocket(
-    'ai-chat',
+    "ai-chat",
     () => wsManager.getAIChatConnection(sessionId),
     options
   );
@@ -132,40 +157,42 @@ export function useAIChat(sessionId?: string, options: UseRealtimeOptions = {}) 
     if (!websocket.connection) return;
 
     const handleMessageResponse = (data: any) => {
-      setMessages(prev => [
-        ...prev,
-        data.user_message,
-        data.ai_response
-      ]);
+      setMessages((prev) => [...prev, data.user_message, data.ai_response]);
     };
 
     const handleTyping = (data: any) => {
       setIsTyping(data.is_typing);
     };
 
-    websocket.on('message_response', handleMessageResponse);
-    websocket.on('typing', handleTyping);
+    websocket.on("message_response", handleMessageResponse);
+    websocket.on("typing", handleTyping);
 
     return () => {
-      websocket.off('message_response', handleMessageResponse);
-      websocket.off('typing', handleTyping);
+      websocket.off("message_response", handleMessageResponse);
+      websocket.off("typing", handleTyping);
     };
   }, [websocket]);
 
-  const sendMessage = useCallback((message: string) => {
-    websocket.send('send_message', { message });
-  }, [websocket]);
+  const sendMessage = useCallback(
+    (message: string) => {
+      websocket.send("send_message", { message });
+    },
+    [websocket]
+  );
 
-  const sendTyping = useCallback((isTyping: boolean) => {
-    websocket.send(isTyping ? 'typing' : 'stop_typing', {});
-  }, [websocket]);
+  const sendTyping = useCallback(
+    (isTyping: boolean) => {
+      websocket.send(isTyping ? "typing" : "stop_typing", {});
+    },
+    [websocket]
+  );
 
   return {
     ...websocket,
     messages,
     isTyping,
     sendMessage,
-    sendTyping
+    sendTyping,
   };
 }
 
@@ -177,7 +204,7 @@ export function useRealtimeNotifications(options: UseRealtimeOptions = {}) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const websocket = useWebSocket(
-    'notifications',
+    "notifications",
     () => wsManager.getNotificationsConnection(),
     options
   );
@@ -188,12 +215,12 @@ export function useRealtimeNotifications(options: UseRealtimeOptions = {}) {
 
     const handleNewNotification = (data: any) => {
       addNotification({
-        type: data.type || 'info',
+        type: data.type || "info",
         title: data.title,
         message: data.message,
-        duration: data.duration
+        duration: data.duration,
       });
-      setUnreadCount(prev => prev + 1);
+      setUnreadCount((prev) => prev + 1);
     };
 
     const handleNotificationUpdate = (data: any) => {
@@ -202,30 +229,36 @@ export function useRealtimeNotifications(options: UseRealtimeOptions = {}) {
       }
     };
 
-    websocket.on('new_notification', handleNewNotification);
-    websocket.on('notification_update', handleNotificationUpdate);
+    websocket.on("new_notification", handleNewNotification);
+    websocket.on("notification_update", handleNotificationUpdate);
 
     return () => {
-      websocket.off('new_notification', handleNewNotification);
-      websocket.off('notification_update', handleNotificationUpdate);
+      websocket.off("new_notification", handleNewNotification);
+      websocket.off("notification_update", handleNotificationUpdate);
     };
   }, [websocket, addNotification]);
 
-  const markAsRead = useCallback((notificationIds: string[]) => {
-    websocket.send('mark_read', { notification_ids: notificationIds });
-  }, [websocket]);
+  const markAsRead = useCallback(
+    (notificationIds: string[]) => {
+      websocket.send("mark_read", { notification_ids: notificationIds });
+    },
+    [websocket]
+  );
 
   return {
     ...websocket,
     unreadCount,
-    markAsRead
+    markAsRead,
   };
 }
 
 /**
  * Hook for peer group real-time functionality.
  */
-export function usePeerGroupRealtime(groupSlug: string, options: UseRealtimeOptions = {}) {
+export function usePeerGroupRealtime(
+  groupSlug: string,
+  options: UseRealtimeOptions = {}
+) {
   const [newPosts, setNewPosts] = useState<any[]>([]);
   const [newComments, setNewComments] = useState<any[]>([]);
   const [newMembers, setNewMembers] = useState<any[]>([]);
@@ -242,43 +275,48 @@ export function usePeerGroupRealtime(groupSlug: string, options: UseRealtimeOpti
     if (!websocket.connection) return;
 
     const handleNewPost = (data: any) => {
-      setNewPosts(prev => [data, ...prev]);
+      setNewPosts((prev) => [data, ...prev]);
     };
 
     const handleNewComment = (data: any) => {
-      setNewComments(prev => [data, ...prev]);
+      setNewComments((prev) => [data, ...prev]);
     };
 
     const handleMemberJoined = (data: any) => {
-      setNewMembers(prev => [data, ...prev]);
+      setNewMembers((prev) => [data, ...prev]);
     };
 
     const handleUserTyping = (data: any) => {
-      setTypingUsers(prev => {
+      setTypingUsers((prev) => {
         if (data.is_typing) {
-          return prev.includes(data.user_name) ? prev : [...prev, data.user_name];
+          return prev.includes(data.user_name)
+            ? prev
+            : [...prev, data.user_name];
         } else {
-          return prev.filter(name => name !== data.user_name);
+          return prev.filter((name) => name !== data.user_name);
         }
       });
     };
 
-    websocket.on('new_post', handleNewPost);
-    websocket.on('new_comment', handleNewComment);
-    websocket.on('member_joined', handleMemberJoined);
-    websocket.on('user_typing', handleUserTyping);
+    websocket.on("new_post", handleNewPost);
+    websocket.on("new_comment", handleNewComment);
+    websocket.on("member_joined", handleMemberJoined);
+    websocket.on("user_typing", handleUserTyping);
 
     return () => {
-      websocket.off('new_post', handleNewPost);
-      websocket.off('new_comment', handleNewComment);
-      websocket.off('member_joined', handleMemberJoined);
-      websocket.off('user_typing', handleUserTyping);
+      websocket.off("new_post", handleNewPost);
+      websocket.off("new_comment", handleNewComment);
+      websocket.off("member_joined", handleMemberJoined);
+      websocket.off("user_typing", handleUserTyping);
     };
   }, [websocket]);
 
-  const sendTyping = useCallback((isTyping: boolean) => {
-    websocket.send('user_typing', { is_typing: isTyping });
-  }, [websocket]);
+  const sendTyping = useCallback(
+    (isTyping: boolean) => {
+      websocket.send("user_typing", { is_typing: isTyping });
+    },
+    [websocket]
+  );
 
   const clearNewPosts = useCallback(() => {
     setNewPosts([]);
@@ -301,7 +339,7 @@ export function usePeerGroupRealtime(groupSlug: string, options: UseRealtimeOpti
     sendTyping,
     clearNewPosts,
     clearNewComments,
-    clearNewMembers
+    clearNewMembers,
   };
 }
 
@@ -314,7 +352,7 @@ export function useDashboardRealtime(options: UseRealtimeOptions = {}) {
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
   const websocket = useWebSocket(
-    'dashboard',
+    "dashboard",
     () => wsManager.getDashboardConnection(),
     options
   );
@@ -324,30 +362,30 @@ export function useDashboardRealtime(options: UseRealtimeOptions = {}) {
     if (!websocket.connection) return;
 
     const handleJobRecommendationUpdate = (data: any) => {
-      setJobRecommendations(prev => [data, ...prev]);
+      setJobRecommendations((prev) => [data, ...prev]);
     };
 
     const handleCompanyUpdate = (data: any) => {
-      setCompanyUpdates(prev => [data, ...prev]);
+      setCompanyUpdates((prev) => [data, ...prev]);
     };
 
     const handleDashboardRefresh = (data: any) => {
       setShouldRefresh(true);
     };
 
-    websocket.on('job_recommendation_update', handleJobRecommendationUpdate);
-    websocket.on('company_update', handleCompanyUpdate);
-    websocket.on('dashboard_refresh', handleDashboardRefresh);
+    websocket.on("job_recommendation_update", handleJobRecommendationUpdate);
+    websocket.on("company_update", handleCompanyUpdate);
+    websocket.on("dashboard_refresh", handleDashboardRefresh);
 
     return () => {
-      websocket.off('job_recommendation_update', handleJobRecommendationUpdate);
-      websocket.off('company_update', handleCompanyUpdate);
-      websocket.off('dashboard_refresh', handleDashboardRefresh);
+      websocket.off("job_recommendation_update", handleJobRecommendationUpdate);
+      websocket.off("company_update", handleCompanyUpdate);
+      websocket.off("dashboard_refresh", handleDashboardRefresh);
     };
   }, [websocket]);
 
   const refreshData = useCallback(() => {
-    websocket.send('refresh_data', {});
+    websocket.send("refresh_data", {});
     setShouldRefresh(false);
   }, [websocket]);
 
@@ -363,6 +401,6 @@ export function useDashboardRealtime(options: UseRealtimeOptions = {}) {
     companyUpdates,
     shouldRefresh,
     refreshData,
-    clearUpdates
+    clearUpdates,
   };
 }
